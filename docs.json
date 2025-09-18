@@ -3,11 +3,11 @@
   "theme": "mint",
   "name": "E2B Documentation",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#FF8800",
+    "light": "#FF8800",
+    "dark": "#E57B00"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
   "navigation": {
     "anchors": [
       {
@@ -15,38 +15,28 @@
         "icon": "book-open",
         "groups": [
           {
-            "group": "Getting Started",
-            "pages": ["What's E2B?", "Quickstart", "Getting API Key"]
-          },
-          {
-            "group": "Sandbox",
-            "pages": [
-              "Sandbox lifecycle",
-              "Environment variables",
-              "Filesystem",
-              "Commands",
-              "Reconnect",
-              "Internet access"
-            ]
-          },
-          {
             "group": "Custom sandbox",
-            "pages": ["Quickstart", "Overview"]
-          },
-          {
-            "group": "Premade sandboxes",
-            "pages": ["Base", "Code interpreter", "Desktop"]
-          },
-          {
-            "group": "Deploy E2B",
-            "pages": ["deployment/byoc", "deployment/self-hosting"]
+            "pages": [
+              "template/quickstart",
+              "template/how-it-works",
+              {
+                "group": "Customization",
+                "icon": "wand-magic-sparkles",
+                "pages": [
+                  "template/customization/authentication",
+                  "template/customization/base-image",
+                  "template/customization/defining-template",
+                  "template/customization/start-ready-command",
+                  "template/customization/build",
+                  "template/customization/logging",
+                  "template/customization/error-handling"
+                ]
+              },
+              "template/examples",
+              "template/migration"
+            ]
           }
         ]
-      },
-      {
-        "anchor": "SDK Reference",
-        "icon": "square-terminal",
-        "href": "https://external-link.com/blog"
       }
     ]
   },
@@ -58,7 +48,7 @@
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://e2b.dev/dashboard"
     }
   },
   "contextual": {
