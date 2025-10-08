@@ -71,7 +71,7 @@ template.copy("package.json", "/app/package.json");
 // Copy multiple files to same destination
 template.copy(["file1", "file2"], "/app/file")
 
-// Copy multiple files using copyItems
+// Multiple copy operations using copyItems
 template.copyItems([
   { src: "src/", dest: "/app/src/" },
   { src: "package.json", dest: "/app/package.json" },
