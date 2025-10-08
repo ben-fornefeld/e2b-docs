@@ -68,8 +68,11 @@ Copy files from your local filesystem to the template:
 // Copy a single file
 template.copy("package.json", "/app/package.json");
 
-// Copy multiple files
-template.copy([
+// Copy multiple files to same destination
+template.copy(["file1", "file2"], "/app/file")
+
+// Copy multiple files using copyItems
+template.copyItems([
   { src: "src/", dest: "/app/src/" },
   { src: "package.json", dest: "/app/package.json" },
 ]);
@@ -85,8 +88,11 @@ template.copy("config.json", "/app/config.json", {
 # Copy a single file
 template.copy("package.json", "/app/package.json")
 
-# Copy multiple files
-template.copy([
+# Copy multiple files to same destination
+template.copy(["file1", "file2"], "/app/file")
+
+# Copy multiple files using copy_items
+template.copy_items([
     {"src": "src/", "dest": "/app/src/"},
     {"src": "package.json", "dest": "/app/package.json"},
 ])
@@ -185,6 +191,9 @@ Clone Git repositories during template build (requires `git` to be installed):
 
 ```typescript
 // Clone a repository
+template.gitClone('https://github.com/user/repo.git')
+
+// Clone a repository to a specific path
 template.gitClone('https://github.com/user/repo.git', '/app/repo')
 
 // Clone a specific branch
@@ -192,17 +201,20 @@ template.gitClone('https://github.com/user/repo.git', '/app/repo', {
   branch: 'main',
 })
 
-// Clone with depth limit
+// Shallow clone with depth limit
 template.gitClone('https://github.com/user/repo.git', '/app/repo', {
   depth: 1,
 })
 ```
 
 ```python
-# Basic clone
+# Clone a repository
+template.git_clone("https://github.com/user/repo.git")
+
+# Clone a repository to a specific path
 template.git_clone("https://github.com/user/repo.git", "/app/repo")
 
-# Clone specific branch
+# Clone a specific branch
 template.git_clone("https://github.com/user/repo.git", "/app/repo", branch="main")
 
 # Shallow clone with depth limit
