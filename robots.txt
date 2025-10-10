@@ -1,0 +1,4 @@
+User-Agent: *
+Allow: /
+
+Sitemap: https://e2b.dev/sitemap.xml
