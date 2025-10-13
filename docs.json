@@ -207,14 +207,14 @@
   },
   "seo": {
     "metatags": {
-      "title": "E2B - Code Interpreting for AI apps",
-      "description": "Open-source secure sandboxes for AI code execution",
+      "title": "E2B | The Enterprise AI Agent Cloud",
+      "description": "E2B Gives AI Agents Secure Computers with Real-World Tools. E2B is Used by 88% of Fortune 100 Companies for Frontier Agentic Workflows.",
       "canonical": "https://e2b.dev",
-      "twitter:title": "E2B - Code Interpreting for AI apps",
-      "twitter:description": "Open-source secure sandboxes for AI code execution",
+      "twitter:title": "E2B | The Enterprise AI Agent Cloud",
+      "twitter:description": "E2B Gives AI Agents Secure Computers with Real-World Tools. E2B is Used by 88% of Fortune 100 Companies for Frontier Agentic Workflows.",
       "twitter:image": "twitter-image.png",
-      "og:title": "E2B - Code Interpreting for AI apps",
-      "og:description": "Open-source secure sandboxes for AI code execution",
+      "og:title": "E2B | The Enterprise AI Agent Cloud",
+      "og:description": "E2B Gives AI Agents Secure Computers with Real-World Tools. E2B is Used by 88% of Fortune 100 Companies for Frontier Agentic Workflows.",
       "og:image": "opengraph-image.png"
     }
   },
