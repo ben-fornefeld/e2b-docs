@@ -29,3 +29,20 @@ To learn more about default user and workdir, please refer to the [User And Work
 
 ## Caching
 To learn more about caching, please refer to the [Caching](/docs/template/caching) section.
+
+## Kernel
+
+E2B sandboxes run on an **LTS 6.1 Linux kernel**.  
+The exact kernel version available in your sandbox depends on **when your template was built**:
+
+| Template build date (DD.MM.YYYY) | Kernel version |
+|----------------------------------|----------------|
+| ≥ 27.11.2025                     | 6.1.158 (current) |
+| < 27.11.2025                     | 6.1.102            |
+
+> **Note:**  
+> Kernel versions are fixed at **template build time**.  
+> If your template was created on an older kernel, **the kernel cannot be upgraded or changed** for that template.  
+> To use a newer kernel, you must **rebuild the template** or create a new one.
+
+You can find the kernel configuration files for each version [here](https://github.com/e2b-dev/fc-kernels/tree/main/configs).
