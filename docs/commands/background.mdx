@@ -23,7 +23,7 @@ const command = await sandbox.commands.run('echo hello; sleep 10; echo world', {
 // Kill the command
 await command.kill()
 ```
-```python Python
+```python Python highlight={6}
 from e2b_code_interpreter import Sandbox
 
 sandbox = Sandbox.create()

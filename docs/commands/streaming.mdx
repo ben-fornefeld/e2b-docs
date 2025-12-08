@@ -11,6 +11,7 @@ or the `on_stdout`, `on_stderr` callbacks to the `commands.run()` method in Pyth
 import { Sandbox } from '@e2b/code-interpreter'
 
 const sandbox = await Sandbox.create()
+
 const result = await sandbox.commands.run('echo hello; sleep 1; echo world', {
   onStdout: (data) => {
     console.log(data)
