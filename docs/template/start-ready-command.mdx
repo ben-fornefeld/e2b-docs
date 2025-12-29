@@ -26,6 +26,9 @@ Set the command that runs when the sandbox starts and the command that determine
 // Set both start command and ready command
 template.setStartCmd('npm start', waitForPort(3000))
 
+// Set custom start and ready command
+template.setStartCmd('npm start', 'curl -s -o /dev/null -w "200"')
+
 // Set only ready command
 template.setReadyCmd(waitForTimeout(10_000))
 ```
@@ -34,6 +37,9 @@ template.setReadyCmd(waitForTimeout(10_000))
 # Set both start command and ready command
 template.set_start_cmd("npm start", wait_for_port(3000))
 
+# Set custom start and ready command
+template.set_start_cmd("npm start", 'curl -s -o /dev/null -w "200"')
+
 # Set only ready command
 template.set_ready_cmd(wait_for_timeout(10_000))
 ```
@@ -41,10 +47,6 @@ template.set_ready_cmd(wait_for_timeout(10_000))
 </CodeGroup>
 
 The ready command is used to determine when the sandbox is ready to accept connections.
-
-<Note>
-    You can only call these commands once per template. Subsequent calls will throw an error.
-</Note>
 
 ## Ready command helpers
 
