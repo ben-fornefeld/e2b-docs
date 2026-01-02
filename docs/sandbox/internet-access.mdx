@@ -41,7 +41,7 @@ For more granular control over network access, you can use the `network` configu
 
 ### Allow and deny lists
 
-You can specify IP addresses or CIDR blocks that the sandbox can or cannot connect to:
+You can specify IP addresses, CIDR blocks, or domain names that the sandbox is allowed to use:
 
 <CodeGroup>
 ```js JavaScript & TypeScript
@@ -82,9 +82,100 @@ restricted_sandbox = Sandbox.create(
 ```
 </CodeGroup>
 
+### Domain-based filtering
+
+You can allow traffic to specific domains by specifying hostnames in `allow out`. When using domain-based filtering, you must include `ALL_TRAFFIC` in `deny out` to block all other traffic. Domains are not supported in the `deny out` list.
+
+<CodeGroup>
+```js JavaScript & TypeScript
+import { Sandbox, ALL_TRAFFIC } from '@e2b/code-interpreter'
+
+// Allow only traffic to google.com
+const sandbox = await Sandbox.create({
+  network: {
+    allowOut: ['google.com'],
+    denyOut: [ALL_TRAFFIC]
+  }
+})
+```
+```python Python
+from e2b_code_interpreter import Sandbox, ALL_TRAFFIC
+
+# Allow only traffic to google.com
+sandbox = Sandbox.create(
+    network={
+        "allow_out": ["google.com"],
+        "deny_out": [ALL_TRAFFIC]
+    }
+)
+```
+</CodeGroup>
+
+<Note>
+When any domain is used, the default nameserver `8.8.8.8` is automatically allowed to ensure proper DNS resolution.
+</Note>
+
+You can also use wildcards to allow all subdomains of a domain:
+
+<CodeGroup>
+```js JavaScript & TypeScript
+import { Sandbox, ALL_TRAFFIC } from '@e2b/code-interpreter'
+
+// Allow traffic to any subdomain of mydomain.com
+const sandbox = await Sandbox.create({
+  network: {
+    allowOut: ['*.mydomain.com'],
+    denyOut: [ALL_TRAFFIC]
+  }
+})
+```
+```python Python
+from e2b_code_interpreter import Sandbox, ALL_TRAFFIC
+
+# Allow traffic to any subdomain of mydomain.com
+sandbox = Sandbox.create(
+    network={
+        "allow_out": ["*.mydomain.com"],
+        "deny_out": [ALL_TRAFFIC]
+    }
+)
+```
+</CodeGroup>
+
+You can combine domain names with IP addresses and CIDR blocks:
+
+<CodeGroup>
+```js JavaScript & TypeScript
+import { Sandbox, ALL_TRAFFIC } from '@e2b/code-interpreter'
+
+// Allow traffic to specific domains and IPs
+const sandbox = await Sandbox.create({
+  network: {
+    allowOut: ['api.example.com', '*.github.com', '8.8.8.8'],
+    denyOut: [ALL_TRAFFIC]
+  }
+})
+```
+```python Python
+from e2b_code_interpreter import Sandbox, ALL_TRAFFIC
+
+# Allow traffic to specific domains and IPs
+sandbox = Sandbox.create(
+    network={
+        "allow_out": ["api.example.com", "*.github.com", "8.8.8.8"],
+        "deny_out": [ALL_TRAFFIC]
+    }
+)
+```
+</CodeGroup>
+
+<Note>
+Domain-based filtering works for HTTP and TLS traffic. UDP-based protocols like QUIC/HTTP3 are not supported for domain filtering.
+</Note>
+
 ### Priority rules
 
-When both `allowOut` and `denyOut` are specified, **allow rules always take precedence** over deny rules. This means if an IP address is in both lists, it will be allowed.
+When both `allow out` and `deny out` are specified, **allow rules always take precedence** over deny rules. This means if an IP address is in both lists, it will be allowed.
 
 <CodeGroup>
 ```js JavaScript & TypeScript
