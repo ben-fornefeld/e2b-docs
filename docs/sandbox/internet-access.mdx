@@ -170,7 +170,7 @@ sandbox = Sandbox.create(
 </CodeGroup>
 
 <Note>
-Domain-based filtering works for HTTP and TLS traffic. UDP-based protocols like QUIC/HTTP3 are not supported for domain filtering.
+Domain-based filtering only works for HTTP traffic on port 80 (via Host header inspection) and TLS traffic on port 443 (via SNI inspection). Traffic on other ports uses CIDR-based filtering only. UDP-based protocols like QUIC/HTTP3 are not supported for domain filtering.
 </Note>
 
 ### Priority rules
