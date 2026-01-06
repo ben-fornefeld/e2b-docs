@@ -3,6 +3,8 @@
 /**
  * SDK Navigation Generator
  * Scans the docs/sdk-reference directory and generates Mintlify-compatible navigation JSON.
+ * 
+ * Reads SDK configuration from sdks.json for display names, icons, and ordering.
  */
 
 const fs = require('fs');
@@ -19,46 +21,30 @@ try {
 const SCRIPT_DIR = __dirname;
 const DOCS_DIR = path.join(SCRIPT_DIR, '..');
 const SDK_REF_DIR = path.join(DOCS_DIR, 'docs', 'sdk-reference');
+const CONFIG_FILE = path.join(SCRIPT_DIR, 'sdks.json');
 const OUTPUT_FILE = path.join(DOCS_DIR, 'sdk_navigation.json');
 
-// SDK configuration - maps directory names to display names and icons
-const SDK_CONFIGS = {
-  'cli': { 
-    name: 'CLI', 
-    icon: 'terminal',
-    order: 1
-  },
-  'js-sdk': { 
-    name: 'JavaScript SDK', 
-    icon: 'square-js',
-    order: 2
-  },
-  'python-sdk': { 
-    name: 'Python SDK', 
-    icon: 'python',
-    order: 3
-  },
-  'code-interpreter-js-sdk': { 
-    name: 'Code Interpreter JavaScript SDK', 
-    icon: 'square-js',
-    order: 4
-  },
-  'code-interpreter-python-sdk': { 
-    name: 'Code Interpreter Python SDK', 
-    icon: 'python',
-    order: 5
-  },
-  'desktop-js-sdk': { 
-    name: 'Desktop JavaScript SDK', 
-    icon: 'square-js',
-    order: 6
-  },
-  'desktop-python-sdk': { 
-    name: 'Desktop Python SDK', 
-    icon: 'python',
-    order: 7
-  },
-};
+/**
+ * Load SDK configuration from sdks.json
+ */
+function loadSdkConfigs() {
+  try {
+    const config = require(CONFIG_FILE);
+    return Object.fromEntries(
+      Object.entries(config.sdks).map(([key, sdk]) => [
+        key,
+        {
+          name: sdk.displayName,
+          icon: sdk.icon,
+          order: sdk.order
+        }
+      ])
+    );
+  } catch (err) {
+    console.error('Failed to load sdks.json:', err.message);
+    process.exit(1);
+  }
+}
 
 /**
  * Get all version directories for an SDK
@@ -109,6 +95,7 @@ function getModules(versionDir) {
  * Generate navigation structure for all SDKs
  */
 function generateNavigation() {
+  const SDK_CONFIGS = loadSdkConfigs();
   const navigation = [];
 
   // check if sdk-reference directory exists
@@ -117,7 +104,7 @@ function generateNavigation() {
     return navigation;
   }
 
-  // process each SDK
+  // process each SDK from config
   for (const [sdkKey, config] of Object.entries(SDK_CONFIGS)) {
     const sdkDir = path.join(SDK_REF_DIR, sdkKey);
     
@@ -171,6 +158,7 @@ function generateNavigation() {
  */
 function main() {
   console.log('📝 Generating SDK navigation...');
+  console.log(`   Config: ${CONFIG_FILE}`);
   console.log(`   Source: ${SDK_REF_DIR}`);
   console.log(`   Output: ${OUTPUT_FILE}`);
   console.log('');
@@ -194,4 +182,3 @@ function main() {
 }
 
 main();
-

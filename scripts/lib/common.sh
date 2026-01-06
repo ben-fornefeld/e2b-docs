@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+
+# Shared utility functions for SDK documentation generation
+
+# resolve latest version for a repo and tag pattern
+# args: repo, tag_pattern, version
+# returns: resolved version (e.g., "v2.9.0") or empty string on failure
+resolve_version() {
+    local repo="$1"
+    local tag_pattern="$2"
+    local version="$3"
+    
+    if [[ "$version" != "latest" ]]; then
+        echo "$version"
+        return 0
+    fi
+    
+    # escape special characters in tag pattern for grep
+    local escaped_pattern=$(echo "$tag_pattern" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    
+    local resolved
+    resolved=$(git ls-remote --tags --refs "$repo" 2>/dev/null | \
+               grep "refs/tags/${escaped_pattern}" | \
+               sed "s/.*refs\/tags\/${tag_pattern}/v/" | \
+               sort -V | tail -1) || true
+    
+    if [[ -z "$resolved" ]]; then
+        return 1
+    fi
+    
+    echo "$resolved"
+}
+
+# clone repo at specific tag with fallback to main branch
+# args: repo, git_tag, target_dir
+clone_repo() {
+    local repo="$1"
+    local git_tag="$2"
+    local target_dir="$3"
+    
+    if [[ -d "$target_dir" ]]; then
+        return 0
+    fi
+    
+    echo "  → Cloning repo at $git_tag..."
+    git clone --depth 1 --branch "$git_tag" "$repo" "$target_dir" 2>/dev/null || {
+        echo "  ⚠️  Tag $git_tag not found, trying branch main..."
+        git clone --depth 1 "$repo" "$target_dir"
+    }
+}
+
+# find SDK directory from list of possible paths
+# args: base_dir, path1, path2, ...
+# returns: full path to SDK directory or empty string
+find_sdk_directory() {
+    local base_dir="$1"
+    shift
+    
+    for path in "$@"; do
+        local full_path="${base_dir}/${path}"
+        if [[ -d "$full_path" ]]; then
+            echo "$full_path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+# install dependencies based on generator type
+# args: sdk_dir, generator
+install_dependencies() {
+    local sdk_dir="$1"
+    local generator="$2"
+    
+    cd "$sdk_dir"
+    
+    echo "  → Installing dependencies..."
+    case "$generator" in
+        typedoc)
+            if command -v pnpm &> /dev/null; then
+                pnpm install --ignore-scripts 2>&1 || {
+                    echo "  ⚠️  pnpm failed, trying npm..."
+                    npm install --legacy-peer-deps 2>&1
+                }
+            else
+                npm install --legacy-peer-deps 2>&1
+            fi
+            ;;
+        pydoc)
+            poetry install --quiet 2>/dev/null || pip install pydoc-markdown
+            ;;
+        cli)
+            if command -v pnpm &> /dev/null; then
+                pnpm install 2>&1 || npm install 2>&1
+            else
+                npm install 2>&1
+            fi
+            ;;
+    esac
+}
+
+# flatten markdown files structure for Mintlify
+# args: sdk_ref_dir
+flatten_markdown() {
+    local sdk_ref_dir="$1"
+    
+    cd "$sdk_ref_dir"
+    rm -f README.md
+    
+    # flatten nested structure: move all md files to root level
+    find . -mindepth 2 -type f -name "*.md" 2>/dev/null | while read -r file; do
+        local dir=$(dirname "$file")
+        local filename=$(basename "$file")
+        
+        if [[ "$filename" == "page.md" || "$filename" == "index.md" ]]; then
+            local module=$(basename "$dir")
+            mv "$file" "./${module}.md" 2>/dev/null || true
+        else
+            mv "$file" "./" 2>/dev/null || true
+        fi
+    done
+    
+    # remove empty directories
+    find . -type d -empty -delete 2>/dev/null || true
+    
+    # rename .md to .mdx
+    for file in *.md; do
+        [[ -f "$file" ]] && mv "$file" "${file%.md}.mdx"
+    done
+}
+
+# copy generated docs to target directory with reporting
+# args: src_dir, target_dir, sdk_name, version
+copy_to_docs() {
+    local src_dir="$1"
+    local target_dir="$2"
+    local sdk_name="$3"
+    local version="$4"
+    
+    mkdir -p "$target_dir"
+    
+    echo "  → Copying files to $target_dir"
+    if cp "$src_dir"/*.mdx "$target_dir/" 2>/dev/null; then
+        echo "  → Generated files:"
+        ls -la "$target_dir"
+        echo "  ✅ $sdk_name $version complete"
+        return 0
+    else
+        echo "  ⚠️  No MDX files to copy"
+        return 1
+    fi
+}
+
+# read a value from JSON config using node
+# args: json_file, jq_path (e.g., ".sdks.js-sdk.displayName")
+json_get() {
+    local json_file="$1"
+    local path="$2"
+    node -e "console.log(require('$json_file')$path || '')"
+}
+
+# read array from JSON config using node
+# args: json_file, jq_path (e.g., ".sdks.js-sdk.packages")
+json_get_array() {
+    local json_file="$1"
+    local path="$2"
+    node -e "const v = require('$json_file')$path; if(Array.isArray(v)) console.log(v.join(' '));"
+}
+

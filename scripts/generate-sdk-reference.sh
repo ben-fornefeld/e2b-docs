@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 # SDK Reference Documentation Generator
@@ -13,6 +12,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/sdks.json"
 
 # defaults
 SDK_TYPE="all"
@@ -22,7 +22,6 @@ VERSION="latest"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --sdk)
-            # only set if value is non-empty and not another flag
             if [[ -n "${2:-}" && ! "$2" =~ ^-- ]]; then
                 SDK_TYPE="$2"
                 shift 2
@@ -31,7 +30,6 @@ while [[ $# -gt 0 ]]; do
             fi
             ;;
         --version)
-            # only set if value is non-empty and not another flag
             if [[ -n "${2:-}" && ! "$2" =~ ^-- ]]; then
                 VERSION="$2"
                 shift 2
@@ -60,65 +58,35 @@ echo "   Version: $VERSION"
 echo "   Temp dir: $TEMP_DIR"
 echo ""
 
-# helper to run individual SDK generators
+# get list of SDKs from config
+get_sdk_list() {
+    node -e "console.log(Object.keys(require('$CONFIG_FILE').sdks).join(' '))"
+}
+
+# generate SDK documentation
 run_generator() {
     local sdk="$1"
     local version="$2"
-    local generator="$SCRIPT_DIR/sdk-generators/${sdk}.sh"
     
-    if [[ -f "$generator" ]]; then
-        echo "📦 Generating $sdk..."
-        chmod +x "$generator"
-        "$generator" "$version" "$TEMP_DIR" "$DOCS_DIR"
-    else
-        echo "⚠️  Generator not found: $generator"
-    fi
+    echo "📦 Generating $sdk..."
+    chmod +x "$SCRIPT_DIR/generate-sdk.sh"
+    "$SCRIPT_DIR/generate-sdk.sh" "$sdk" "$version" "$TEMP_DIR" "$DOCS_DIR" || {
+        echo "  ⚠️  Generator failed for $sdk"
+        return 0  # continue with other SDKs
+    }
 }
 
-case "$SDK_TYPE" in
-    js-sdk)
-        run_generator "js-sdk" "$VERSION"
-        ;;
-    python-sdk)
-        run_generator "python-sdk" "$VERSION"
-        ;;
-    cli)
-        run_generator "cli" "$VERSION"
-        ;;
-    code-interpreter-js-sdk)
-        run_generator "code-interpreter-js-sdk" "$VERSION"
-        ;;
-    code-interpreter-python-sdk)
-        run_generator "code-interpreter-python-sdk" "$VERSION"
-        ;;
-    desktop-js-sdk)
-        run_generator "desktop-js-sdk" "$VERSION"
-        ;;
-    desktop-python-sdk)
-        run_generator "desktop-python-sdk" "$VERSION"
-        ;;
-    all)
-        # generate all SDKs from main e2b repo
-        run_generator "js-sdk" "$VERSION"
-        run_generator "python-sdk" "$VERSION"
-        run_generator "cli" "$VERSION"
-        
-        # generate SDKs from external repos
-        run_generator "code-interpreter-js-sdk" "$VERSION"
-        run_generator "code-interpreter-python-sdk" "$VERSION"
-        run_generator "desktop-js-sdk" "$VERSION"
-        run_generator "desktop-python-sdk" "$VERSION"
-        ;;
-    *)
-        echo "❌ Unknown SDK type: $SDK_TYPE"
-        echo "   Valid options: js-sdk, python-sdk, cli, code-interpreter-js-sdk,"
-        echo "                  code-interpreter-python-sdk, desktop-js-sdk,"
-        echo "                  desktop-python-sdk, all"
-        exit 1
-        ;;
-esac
+# run generators
+if [[ "$SDK_TYPE" == "all" ]]; then
+    SDK_LIST=$(get_sdk_list)
+    for sdk in $SDK_LIST; do
+        run_generator "$sdk" "$VERSION"
+    done
+else
+    run_generator "$SDK_TYPE" "$VERSION"
+fi
 
-# generate navigation JSON after all SDKs are generated
+# generate navigation JSON
 echo ""
 echo "📝 Generating navigation JSON..."
 node "$SCRIPT_DIR/generate-sdk-nav.js"
@@ -130,4 +98,3 @@ node "$SCRIPT_DIR/merge-sdk-nav.js"
 
 echo ""
 echo "✅ SDK reference generation complete"
-

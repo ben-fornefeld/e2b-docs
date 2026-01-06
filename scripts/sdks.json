@@ -1,0 +1,95 @@
+{
+  "sdks": {
+    "cli": {
+      "displayName": "CLI",
+      "icon": "terminal",
+      "order": 1,
+      "repo": "https://github.com/e2b-dev/e2b.git",
+      "tagPattern": "@e2b/cli@",
+      "tagFormat": "@e2b/cli@{version}",
+      "sdkPath": "packages/cli",
+      "generator": "cli",
+      "required": true
+    },
+    "js-sdk": {
+      "displayName": "JavaScript SDK",
+      "icon": "square-js",
+      "order": 2,
+      "repo": "https://github.com/e2b-dev/e2b.git",
+      "tagPattern": "e2b@",
+      "tagFormat": "e2b@{version}",
+      "sdkPath": "packages/js-sdk",
+      "generator": "typedoc",
+      "required": true
+    },
+    "python-sdk": {
+      "displayName": "Python SDK",
+      "icon": "python",
+      "order": 3,
+      "repo": "https://github.com/e2b-dev/e2b.git",
+      "tagPattern": "e2b@",
+      "tagFormat": "e2b@{version}",
+      "sdkPath": "packages/python-sdk",
+      "generator": "pydoc",
+      "required": true,
+      "packages": [
+        "e2b.sandbox_sync",
+        "e2b.sandbox_async",
+        "e2b.exceptions",
+        "e2b.template",
+        "e2b.template_sync",
+        "e2b.template_async"
+      ],
+      "submodules": {
+        "e2b.template": ["logger", "readycmd"]
+      }
+    },
+    "code-interpreter-js-sdk": {
+      "displayName": "Code Interpreter JavaScript SDK",
+      "icon": "square-js",
+      "order": 4,
+      "repo": "https://github.com/e2b-dev/code-interpreter.git",
+      "tagPattern": "@e2b/code-interpreter@",
+      "tagFormat": "@e2b/code-interpreter@{version}",
+      "sdkPaths": ["js", "packages/js-sdk", "packages/sdk", "js-sdk"],
+      "generator": "typedoc",
+      "required": false
+    },
+    "code-interpreter-python-sdk": {
+      "displayName": "Code Interpreter Python SDK",
+      "icon": "python",
+      "order": 5,
+      "repo": "https://github.com/e2b-dev/code-interpreter.git",
+      "tagPattern": "e2b-code-interpreter@",
+      "tagFormat": "e2b-code-interpreter@{version}",
+      "sdkPaths": ["python", "packages/python-sdk", "packages/python", "python-sdk"],
+      "generator": "pydoc",
+      "required": false,
+      "packages": ["e2b_code_interpreter"]
+    },
+    "desktop-js-sdk": {
+      "displayName": "Desktop JavaScript SDK",
+      "icon": "square-js",
+      "order": 6,
+      "repo": "https://github.com/e2b-dev/desktop.git",
+      "tagPattern": "@e2b/desktop@",
+      "tagFormat": "@e2b/desktop@{version}",
+      "sdkPaths": ["js", "packages/js-sdk", "packages/sdk", "js-sdk"],
+      "generator": "typedoc",
+      "required": false
+    },
+    "desktop-python-sdk": {
+      "displayName": "Desktop Python SDK",
+      "icon": "python",
+      "order": 7,
+      "repo": "https://github.com/e2b-dev/desktop.git",
+      "tagPattern": "e2b-desktop@",
+      "tagFormat": "e2b-desktop@{version}",
+      "sdkPaths": ["python", "packages/python-sdk", "packages/python", "python-sdk"],
+      "generator": "pydoc",
+      "required": false,
+      "packages": ["e2b_desktop"]
+    }
+  }
+}
+
