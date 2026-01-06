@@ -168,18 +168,24 @@
           },
           {
             "group": "Deployment",
-            "pages": ["docs/byoc"]
+            "pages": [
+              "docs/byoc"
+            ]
           },
           {
             "group": "Migration",
-            "pages": ["docs/migration/v2"]
+            "pages": [
+              "docs/migration/v2"
+            ]
           },
           {
             "group": "Troubleshooting",
             "pages": [
               {
                 "group": "SDKs",
-                "pages": ["docs/troubleshooting/sdks/workers-edge-runtime"]
+                "pages": [
+                  "docs/troubleshooting/sdks/workers-edge-runtime"
+                ]
               },
               {
                 "group": "Templates",
@@ -195,7 +201,70 @@
       {
         "anchor": "SDK Reference",
         "icon": "brackets-curly",
-        "href": "https://e2b.dev/docs/sdk-reference"
+        "dropdowns": [
+          {
+            "dropdown": "CLI",
+            "icon": "terminal",
+            "versions": [
+              {
+                "version": "v2.2.0@latest",
+                "groups": [
+                  {
+                    "group": "CLI v2.2.0",
+                    "pages": [
+                      "docs/sdk-reference/cli/v2.2.0/auth",
+                      "docs/sdk-reference/cli/v2.2.0/sandbox",
+                      "docs/sdk-reference/cli/v2.2.0/template"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "dropdown": "JavaScript SDK",
+            "icon": "square-js",
+            "versions": [
+              {
+                "version": "v2.9.0@latest",
+                "groups": [
+                  {
+                    "group": "JavaScript SDK v2.9.0",
+                    "pages": [
+                      "docs/sdk-reference/js-sdk/v2.9.0/commands",
+                      "docs/sdk-reference/js-sdk/v2.9.0/errors",
+                      "docs/sdk-reference/js-sdk/v2.9.0/filesystem",
+                      "docs/sdk-reference/js-sdk/v2.9.0/sandbox",
+                      "docs/sdk-reference/js-sdk/v2.9.0/template"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "dropdown": "Python SDK",
+            "icon": "python",
+            "versions": [
+              {
+                "version": "v2.9.0@latest",
+                "groups": [
+                  {
+                    "group": "Python SDK v2.9.0",
+                    "pages": [
+                      "docs/sdk-reference/python-sdk/v2.9.0/exceptions",
+                      "docs/sdk-reference/python-sdk/v2.9.0/sandbox_async",
+                      "docs/sdk-reference/python-sdk/v2.9.0/sandbox_sync",
+                      "docs/sdk-reference/python-sdk/v2.9.0/template",
+                      "docs/sdk-reference/python-sdk/v2.9.0/template_async",
+                      "docs/sdk-reference/python-sdk/v2.9.0/template_sync"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     ],
     "global": {}

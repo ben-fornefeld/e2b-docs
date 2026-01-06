@@ -1,0 +1,130 @@
+name: Sync SDK Reference Documentation
+
+on:
+  # manual trigger with inputs
+  workflow_dispatch:
+    inputs:
+      sdk:
+        description: 'SDK to generate (js-sdk, python-sdk, cli, code-interpreter-js-sdk, code-interpreter-python-sdk, desktop-js-sdk, desktop-python-sdk, all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - js-sdk
+          - python-sdk
+          - cli
+          - code-interpreter-js-sdk
+          - code-interpreter-python-sdk
+          - desktop-js-sdk
+          - desktop-python-sdk
+      version:
+        description: 'Version to generate (e.g., v2.9.0 or latest)'
+        required: true
+        default: 'latest'
+        type: string
+
+  # triggered from e2b-dev/e2b repo on release
+  repository_dispatch:
+    types: [sdk-release]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout docs repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
+        run: pnpm install
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Determine SDK and Version
+        id: params
+        run: |
+          # handle workflow_dispatch
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SDK="${{ github.event.inputs.sdk }}"
+            VERSION="${{ github.event.inputs.version }}"
+          # handle repository_dispatch from e2b repo
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            SDK="${{ github.event.client_payload.sdk }}"
+            VERSION="${{ github.event.client_payload.version }}"
+          fi
+          
+          # fallback to defaults if empty
+          echo "sdk=${SDK:-all}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
+
+      - name: Generate SDK Reference
+        run: |
+          chmod +x scripts/generate-sdk-reference.sh
+          chmod +x scripts/sdk-generators/*.sh
+          ./scripts/generate-sdk-reference.sh \
+            --sdk "${{ steps.params.outputs.sdk }}" \
+            --version "${{ steps.params.outputs.version }}"
+
+      - name: Verify generated files
+        run: |
+          echo "Generated SDK reference files:"
+          find docs/sdk-reference -type f -name "*.mdx" 2>/dev/null | head -20 || echo "No MDX files found"
+          echo ""
+          echo "Navigation JSON:"
+          cat sdk_navigation.json 2>/dev/null | head -50 || echo "No navigation file found"
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # stage changes
+          git add docs/sdk-reference/
+          git add sdk_navigation.json
+          git add docs.json
+          
+          # commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "[skip ci] Update SDK reference: ${{ steps.params.outputs.sdk }} ${{ steps.params.outputs.version }}"
+            git push
+          fi
+
+      - name: Summary
+        run: |
+          echo "## SDK Reference Generation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **SDK**: ${{ steps.params.outputs.sdk }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.params.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Generated Files" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          find docs/sdk-reference -type f -name "*.mdx" | wc -l | xargs echo "Total MDX files:"
+          find docs/sdk-reference -type f -name "*.mdx" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
