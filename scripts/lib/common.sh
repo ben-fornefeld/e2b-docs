@@ -1,5 +1,79 @@
 #!/usr/bin/env bash
 
+# get all versions matching tag pattern (sorted newest first)
+get_all_versions() {
+    local repo="$1"
+    local tag_pattern="$2"
+    
+    local sed_escaped_pattern=$(echo "$tag_pattern" | sed 's/[\/&@]/\\&/g')
+    
+    git ls-remote --tags --refs "$repo" 2>/dev/null | \
+        grep "refs/tags/${tag_pattern}" | \
+        sed "s|.*refs/tags/${sed_escaped_pattern}|v|" | \
+        sort -V -r
+}
+
+# check if version documentation already exists
+version_exists() {
+    local sdk_key="$1"
+    local version="$2"
+    local docs_dir="$3"
+    
+    local version_dir="$docs_dir/docs/sdk-reference/$sdk_key/$version"
+    [[ -d "$version_dir" ]] && [[ -n "$(ls -A "$version_dir"/*.mdx 2>/dev/null)" ]]
+}
+
+# validate version string format
+is_valid_version() {
+    local version="$1"
+    [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+# compare two versions (returns 0 if v1 >= v2)
+version_gte() {
+    local v1="$1"
+    local v2="$2"
+    
+    # strip 'v' prefix if present
+    v1="${v1#v}"
+    v2="${v2#v}"
+    
+    # use sort -V to compare versions
+    local higher=$(printf '%s\n%s' "$v1" "$v2" | sort -V -r | head -n1)
+    [[ "$higher" == "$v1" ]]
+}
+
+# filter versions to only those >= minVersion
+filter_min_version() {
+    local versions="$1"
+    local min_version="$2"
+    
+    if [[ -z "$min_version" ]]; then
+        echo "$versions"
+        return 0
+    fi
+    
+    echo "$versions" | while IFS= read -r version; do
+        if [[ -n "$version" ]] && version_gte "$version" "$min_version"; then
+            echo "$version"
+        fi
+    done
+}
+
+# count existing versions for an SDK
+count_sdk_versions() {
+    local sdk_key="$1"
+    local docs_dir="$2"
+    local sdk_ref_dir="$docs_dir/docs/sdk-reference/$sdk_key"
+    
+    if [[ ! -d "$sdk_ref_dir" ]]; then
+        echo "0"
+        return
+    fi
+    
+    find "$sdk_ref_dir" -maxdepth 1 -type d \( -name "v*" -o -name "[0-9]*" \) 2>/dev/null | wc -l | tr -d ' '
+}
+
 resolve_version() {
     local repo="$1"
     local tag_pattern="$2"
@@ -56,6 +130,84 @@ find_sdk_directory() {
     return 1
 }
 
+# find lockfile, searching up directory tree
+find_lockfile() {
+    local dir="$1"
+    local filename="$2"
+    
+    while [[ "$dir" != "/" && "$dir" != "." ]]; do
+        if [[ -f "$dir/$filename" ]]; then
+            echo "$dir/$filename"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+
+# compute hash of lockfile for caching
+get_lockfile_hash() {
+    local sdk_dir="$1"
+    local generator="$2"
+    
+    local lockfile=""
+    case "$generator" in
+        typedoc|cli)
+            lockfile=$(find_lockfile "$sdk_dir" "pnpm-lock.yaml") || \
+            lockfile=$(find_lockfile "$sdk_dir" "package-lock.json") || true
+            ;;
+        pydoc)
+            lockfile=$(find_lockfile "$sdk_dir" "poetry.lock") || true
+            ;;
+    esac
+    
+    if [[ -n "$lockfile" && -f "$lockfile" ]]; then
+        # use md5 on macOS, md5sum on Linux
+        if command -v md5 &>/dev/null; then
+            md5 -q "$lockfile"
+        else
+            md5sum "$lockfile" | cut -d' ' -f1
+        fi
+    fi
+}
+
+# install dependencies with caching support
+# for JS: relies on pnpm's global cache (~/.pnpm-store) with --prefer-offline
+# for Python: tracks lockfile hash to skip redundant installs
+install_dependencies_cached() {
+    local sdk_dir="$1"
+    local generator="$2"
+    local temp_dir="$3"
+    
+    case "$generator" in
+        typedoc|cli)
+            # pnpm uses content-addressable storage with hardlinks
+            # --prefer-offline makes it fast, no need to copy node_modules
+            install_dependencies "$sdk_dir" "$generator"
+            ;;
+        pydoc)
+            local lockfile_hash=$(get_lockfile_hash "$sdk_dir" "$generator")
+            local cache_marker="$temp_dir/.deps-cache/pydoc-$lockfile_hash/.installed"
+            
+            if [[ -n "$lockfile_hash" && -f "$cache_marker" ]]; then
+                echo "  → Poetry dependencies cached (lockfile unchanged)"
+                return 0
+            fi
+            
+            install_dependencies "$sdk_dir" "$generator"
+            
+            # mark as installed for future versions with same lockfile
+            if [[ -n "$lockfile_hash" ]]; then
+                mkdir -p "$(dirname "$cache_marker")"
+                touch "$cache_marker"
+            fi
+            ;;
+        *)
+            install_dependencies "$sdk_dir" "$generator"
+            ;;
+    esac
+}
+
 install_dependencies() {
     local sdk_dir="$1"
     local generator="$2"
@@ -66,12 +218,12 @@ install_dependencies() {
     case "$generator" in
         typedoc)
             if command -v pnpm &> /dev/null; then
-                pnpm install --ignore-scripts 2>&1 || {
+                pnpm install --ignore-scripts --prefer-offline 2>&1 || {
                     echo "  ⚠️  pnpm failed, trying npm..."
-                    npm install --legacy-peer-deps 2>&1
+                    npm install --legacy-peer-deps --prefer-offline 2>&1
                 }
             else
-                npm install --legacy-peer-deps 2>&1
+                npm install --legacy-peer-deps --prefer-offline 2>&1
             fi
             ;;
         pydoc)
@@ -79,9 +231,9 @@ install_dependencies() {
             ;;
         cli)
             if command -v pnpm &> /dev/null; then
-                pnpm install 2>&1 || npm install 2>&1
+                pnpm install --prefer-offline 2>&1 || npm install --prefer-offline 2>&1
             else
-                npm install 2>&1
+                npm install --prefer-offline 2>&1
             fi
             ;;
     esac

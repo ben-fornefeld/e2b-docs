@@ -3,13 +3,14 @@
     "cli": {
       "displayName": "CLI",
       "icon": "terminal",
-      "order": 4,
+      "order": 7,
       "repo": "https://github.com/e2b-dev/e2b.git",
       "tagPattern": "@e2b/cli@",
       "tagFormat": "@e2b/cli@{version}",
       "sdkPath": "packages/cli",
       "generator": "cli",
-      "required": true
+      "required": true,
+      "minVersion": "1.0.0"
     },
     "js-sdk": {
       "displayName": "JavaScript SDK",
@@ -20,7 +21,8 @@
       "tagFormat": "e2b@{version}",
       "sdkPath": "packages/js-sdk",
       "generator": "typedoc",
-      "required": true
+      "required": true,
+      "minVersion": "1.0.0"
     },
     "python-sdk": {
       "displayName": "Python SDK",
@@ -32,6 +34,7 @@
       "sdkPath": "packages/python-sdk",
       "generator": "pydoc",
       "required": true,
+      "minVersion": "1.0.0",
       "packages": [
         "e2b.sandbox_sync",
         "e2b.sandbox_async",
@@ -47,47 +50,51 @@
     "code-interpreter-js-sdk": {
       "displayName": "Code Interpreter JavaScript SDK",
       "icon": "square-js",
-      "order": 5,
+      "order": 3,
       "repo": "https://github.com/e2b-dev/code-interpreter.git",
       "tagPattern": "@e2b/code-interpreter@",
       "tagFormat": "@e2b/code-interpreter@{version}",
       "sdkPaths": ["js"],
       "generator": "typedoc",
-      "required": false
+      "required": false,
+      "minVersion": "1.0.0"
     },
     "code-interpreter-python-sdk": {
       "displayName": "Code Interpreter Python SDK",
       "icon": "python",
-      "order": 6,
+      "order": 4,
       "repo": "https://github.com/e2b-dev/code-interpreter.git",
       "tagPattern": "@e2b/code-interpreter-python@",
       "tagFormat": "@e2b/code-interpreter-python@{version}",
       "sdkPaths": ["python"],
       "generator": "pydoc",
       "required": false,
+      "minVersion": "1.0.0",
       "packages": ["e2b_code_interpreter"]
     },
     "desktop-js-sdk": {
       "displayName": "Desktop JavaScript SDK",
       "icon": "square-js",
-      "order": 7,
+      "order": 5,
       "repo": "https://github.com/e2b-dev/desktop.git",
       "tagPattern": "@e2b/desktop@",
       "tagFormat": "@e2b/desktop@{version}",
       "sdkPaths": ["packages/js-sdk"],
       "generator": "typedoc",
-      "required": false
+      "required": false,
+      "minVersion": "1.0.0"
     },
     "desktop-python-sdk": {
       "displayName": "Desktop Python SDK",
       "icon": "python",
-      "order": 8,
+      "order": 6,
       "repo": "https://github.com/e2b-dev/desktop.git",
       "tagPattern": "@e2b/desktop-python@",
       "tagFormat": "@e2b/desktop-python@{version}",
       "sdkPaths": ["packages/python-sdk"],
       "generator": "pydoc",
       "required": false,
+      "minVersion": "1.0.0",
       "packages": ["e2b_desktop"]
     }
   }

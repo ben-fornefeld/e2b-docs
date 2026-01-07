@@ -7,6 +7,7 @@ CONFIG_FILE="$SCRIPT_DIR/sdks.json"
 
 SDK_TYPE="all"
 VERSION="latest"
+LIMIT=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -26,6 +27,14 @@ while [[ $# -gt 0 ]]; do
                 shift
             fi
             ;;
+        --limit)
+            if [[ -n "${2:-}" && ! "$2" =~ ^-- ]]; then
+                LIMIT="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
         --all)
             SDK_TYPE="all"
             shift
@@ -37,12 +46,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# export limit for child scripts
+export SDK_VERSION_LIMIT="$LIMIT"
+
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
 echo "🚀 SDK Reference Generator"
 echo "   SDK: $SDK_TYPE"
 echo "   Version: $VERSION"
+[[ -n "$LIMIT" ]] && echo "   Limit: $LIMIT versions"
 echo "   Temp dir: $TEMP_DIR"
 echo ""
 

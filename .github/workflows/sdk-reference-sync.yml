@@ -19,9 +19,9 @@ on:
           - desktop-js-sdk
           - desktop-python-sdk
       version:
-        description: "Version to generate (e.g., v2.9.0 or latest)"
+        description: "Version to generate (all, latest, or specific like v2.9.0)"
         required: true
-        default: "latest"
+        default: "all"
         type: string
 
   # triggered from e2b-dev/e2b repo on release
@@ -72,11 +72,13 @@ jobs:
             VERSION="${{ github.event.inputs.version }}"
           elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             SDK="${{ github.event.client_payload.sdk }}"
+            # on repository_dispatch, default to "all" to auto-detect missing versions
             VERSION="${{ github.event.client_payload.version }}"
+            VERSION="${VERSION:-all}"
           fi
 
           echo "sdk=${SDK:-all}" >> $GITHUB_OUTPUT
-          echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION:-all}" >> $GITHUB_OUTPUT
 
       - name: Generate SDK Reference
         run: |
