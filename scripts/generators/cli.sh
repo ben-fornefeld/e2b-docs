@@ -26,23 +26,19 @@ generate_cli_docs() {
     echo "  → Generating documentation..."
     mkdir -p sdk_ref
     
-    # the CLI has a special script for generating docs
-    if [[ -f "scripts/commands2md.js" ]]; then
-        node scripts/commands2md.js sdk_ref 2>/dev/null || {
-            # fallback: try running the built CLI
-            node dist/index.js docs --output sdk_ref 2>/dev/null || true
-        }
-    else
-        # try common doc generation commands
-        node dist/index.js docs --output sdk_ref 2>/dev/null || \
-        node dist/index.js generate-docs --output sdk_ref 2>/dev/null || true
-    fi
+    # the CLI uses -cmd2md flag to generate markdown docs
+    NODE_ENV=development node dist/index.js -cmd2md 2>&1 || {
+        echo "  ⚠️  CLI doc generation failed"
+        return 1
+    }
     
-    # rename .md to .mdx
+    # rename .md to .mdx (if any .md files exist)
     cd sdk_ref
+    shopt -s nullglob
     for file in *.md; do
-        [[ -f "$file" ]] && mv "$file" "${file%.md}.mdx"
+        mv "$file" "${file%.md}.mdx"
     done
+    shopt -u nullglob
     
     return 0
 }

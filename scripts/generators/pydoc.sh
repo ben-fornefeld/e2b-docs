@@ -6,14 +6,16 @@
 # process generated mdx files (cleanup formatting)
 process_mdx() {
     local file="$1"
+    local tmp_file="${file}.tmp"
+    
     # remove package path display links
-    sed -i'' -e '/<a[^>]*>.*<\/a>/d' "${file}" 2>/dev/null || true
+    sed '/<a[^>]*>.*<\/a>/d' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
     # remove h1 headers
-    sed -i'' -e '/^# /d' "${file}" 2>/dev/null || true
+    sed '/^# /d' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
     # remove " Objects" suffix from h2 headers
-    sed -i'' -e '/^## / s/ Objects$//' "${file}" 2>/dev/null || true
+    sed '/^## / s/ Objects$//' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
     # convert h4 to h3
-    sed -i'' -e 's/^####/###/' "${file}" 2>/dev/null || true
+    sed 's/^####/###/' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
 }
 
 generate_pydoc() {

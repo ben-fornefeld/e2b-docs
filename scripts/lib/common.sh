@@ -15,13 +15,13 @@ resolve_version() {
         return 0
     fi
     
-    # escape special characters in tag pattern for grep
-    local escaped_pattern=$(echo "$tag_pattern" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    # escape special characters in tag pattern for sed (needs different escaping than grep)
+    local sed_escaped_pattern=$(echo "$tag_pattern" | sed 's/[\/&@]/\\&/g')
     
     local resolved
     resolved=$(git ls-remote --tags --refs "$repo" 2>/dev/null | \
-               grep "refs/tags/${escaped_pattern}" | \
-               sed "s/.*refs\/tags\/${tag_pattern}/v/" | \
+               grep "refs/tags/${tag_pattern}" | \
+               sed "s|.*refs/tags/${sed_escaped_pattern}|v|" | \
                sort -V | tail -1) || true
     
     if [[ -z "$resolved" ]]; then
@@ -124,9 +124,37 @@ flatten_markdown() {
     # remove empty directories
     find . -type d -empty -delete 2>/dev/null || true
     
-    # rename .md to .mdx
+    # rename .md to .mdx and add frontmatter (if any .md files exist)
+    shopt -s nullglob
     for file in *.md; do
-        [[ -f "$file" ]] && mv "$file" "${file%.md}.mdx"
+        local mdx_file="${file%.md}.mdx"
+        # add frontmatter to disable TOC for SDK reference pages
+        {
+            echo "---"
+            echo "sidebarTitle: \"$(basename "$file" .md)\""
+            echo "toc: false"
+            echo "---"
+            echo ""
+            cat "$file"
+        } > "$mdx_file"
+        rm "$file"
+    done
+    shopt -u nullglob
+    
+    # add frontmatter to existing .mdx files (from pydoc generator)
+    for file in *.mdx; do
+        if ! head -n1 "$file" | grep -q "^---$"; then
+            local tmp_file="${file}.tmp"
+            {
+                echo "---"
+                echo "sidebarTitle: \"$(basename "$file" .mdx)\""
+                echo "toc: false"
+                echo "---"
+                echo ""
+                cat "$file"
+            } > "$tmp_file"
+            mv "$tmp_file" "$file"
+        fi
     done
 }
 

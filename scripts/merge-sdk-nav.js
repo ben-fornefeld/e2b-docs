@@ -5,7 +5,7 @@
  * 
  * This script merges the generated sdk_navigation.json into the docs.json
  * Mintlify configuration. It finds the "SDK Reference" anchor and replaces
- * its dropdowns with the generated navigation.
+ * its dropdowns with the generated navigation, enabling SDK and version selection.
  */
 
 const fs = require('fs');
@@ -63,9 +63,14 @@ function main() {
   // summary
   for (const dropdown of validDropdowns) {
     const totalVersions = dropdown.versions.length;
-    const totalPages = dropdown.versions.reduce((sum, v) => 
-      sum + v.groups.reduce((s, g) => s + g.pages.length, 0), 0
-    );
+    const totalPages = dropdown.versions.reduce((sum, v) => {
+      if (v.pages) {
+        return sum + v.pages.length;
+      } else if (v.groups) {
+        return sum + v.groups.reduce((s, g) => s + g.pages.length, 0);
+      }
+      return sum;
+    }, 0);
     console.log(`   - ${dropdown.dropdown}: ${totalVersions} versions, ${totalPages} pages`);
   }
 }

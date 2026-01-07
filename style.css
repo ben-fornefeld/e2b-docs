@@ -61,3 +61,35 @@ code {
 .dark\:text-sky-200:is(.dark *) {
     color: rgb(255, 183, 102) !important;
 }
+
+/* Version switcher styles - subtle highlight */
+#sidebar ul:last-child li button,
+#sidebar ul:last-child li select {
+    background-color: rgba(255, 136, 0, 0.1) !important;   /* 10% orange tint */
+    color: #ff8800 !important;                              /* Orange text */
+    border: 1px solid rgba(255, 136, 0, 0.3) !important;   /* 30% orange border */
+    border-radius: 6px !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+#sidebar ul:last-child li button:hover,
+#sidebar ul:last-child li select:hover {
+    background-color: rgba(255, 136, 0, 0.15) !important;  /* Slightly darker on hover */
+    border-color: rgba(255, 136, 0, 0.5) !important;
+}
+
+/* Dark mode version switcher */
+.dark #sidebar ul:last-child li button,
+.dark #sidebar ul:last-child li select {
+    background-color: rgba(255, 136, 0, 0.15) !important;  /* Slightly more visible in dark */
+    color: #ffaa44 !important;                              /* Lighter orange for contrast */
+    border-color: rgba(255, 136, 0, 0.4) !important;
+}
+
+.dark #sidebar ul:last-child li button:hover,
+.dark #sidebar ul:last-child li select:hover {
+    background-color: rgba(255, 136, 0, 0.25) !important;
+    border-color: rgba(255, 136, 0, 0.6) !important;
+}

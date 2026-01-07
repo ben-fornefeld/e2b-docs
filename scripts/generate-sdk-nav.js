@@ -36,7 +36,10 @@ function loadSdkConfigs() {
         {
           name: sdk.displayName,
           icon: sdk.icon,
-          order: sdk.order
+          order: sdk.order,
+          family: sdk.family,
+          language: sdk.language,
+          standalone: sdk.standalone
         }
       ])
     );
@@ -52,8 +55,14 @@ function loadSdkConfigs() {
 function getVersions(sdkDir) {
   try {
     const entries = fs.readdirSync(sdkDir, { withFileTypes: true });
+    
+    // accept both "v2.9.0" and "2.9.0" formats
     const versions = entries
-      .filter(e => e.isDirectory() && e.name.startsWith('v'))
+      .filter(e => {
+        if (!e.isDirectory()) return false;
+        // match version patterns: v1.2.3 or 1.2.3
+        return /^v?\d+\.\d+\.\d+/.test(e.name);
+      })
       .map(e => e.name);
     
     // sort versions (latest first)
@@ -93,6 +102,7 @@ function getModules(versionDir) {
 
 /**
  * Generate navigation structure for all SDKs
+ * Groups SDKs by family (e.g., sdk, code-interpreter, desktop)
  */
 function generateNavigation() {
   const SDK_CONFIGS = loadSdkConfigs();
@@ -104,53 +114,122 @@ function generateNavigation() {
     return navigation;
   }
 
-  // process each SDK from config
+  // group SDKs by family
+  const families = {};
   for (const [sdkKey, config] of Object.entries(SDK_CONFIGS)) {
-    const sdkDir = path.join(SDK_REF_DIR, sdkKey);
+    const family = config.family || sdkKey;
+    if (!families[family]) {
+      families[family] = {
+        name: getFamilyDisplayName(family),
+        icon: getFirstIcon(family, config.icon),
+        order: Math.min(...[config.order]), // use lowest order in family
+        standalone: config.standalone || false,
+        languages: []
+      };
+    }
+    // update order to be the minimum across all SDKs in family
+    families[family].order = Math.min(families[family].order, config.order);
+    families[family].languages.push({ key: sdkKey, config });
+  }
+
+  // process each family
+  for (const [familyKey, family] of Object.entries(families)) {
+    // get versions from first language (they should all match)
+    const firstLang = family.languages[0];
+    const firstSdkDir = path.join(SDK_REF_DIR, firstLang.key);
     
-    if (!fs.existsSync(sdkDir)) {
-      console.log(`   Skipping ${sdkKey} (not found)`);
+    if (!fs.existsSync(firstSdkDir)) {
+      console.log(`   Skipping ${familyKey} (not found)`);
       continue;
     }
 
-    const versions = getVersions(sdkDir);
+    const versions = getVersions(firstSdkDir);
     if (versions.length === 0) {
-      console.log(`   Skipping ${sdkKey} (no versions)`);
+      console.log(`   Skipping ${familyKey} (no versions)`);
       continue;
     }
 
-    console.log(`   Found ${sdkKey}: ${versions.length} versions`);
+    console.log(`   Found ${familyKey}: ${versions.length} versions, ${family.languages.length} languages`);
 
+    // create dropdown for this family
     const dropdown = {
-      dropdown: config.name,
-      icon: config.icon,
+      dropdown: family.name,
+      icon: family.icon,
       versions: versions.map((version, index) => {
-        const versionDir = path.join(sdkDir, version);
-        const modules = getModules(versionDir);
+        const displayVersion = version.startsWith('v') ? version : `v${version}`;
+        
+        // standalone SDKs (like CLI) - pages directly under version
+        if (family.standalone) {
+          const versionDir = path.join(firstSdkDir, version);
+          const modules = getModules(versionDir);
+          
+          return {
+            version: displayVersion,
+            default: index === 0,
+            pages: modules.map(module => 
+              `docs/sdk-reference/${firstLang.key}/${version}/${module}`
+            )
+          };
+        }
+        
+        // multi-language SDKs - groups for each language
+        const groups = family.languages.map(lang => {
+          const sdkDir = path.join(SDK_REF_DIR, lang.key);
+          const versionDir = path.join(sdkDir, version);
+          
+          if (!fs.existsSync(versionDir)) {
+            return null;
+          }
+          
+          const modules = getModules(versionDir);
+          
+          return {
+            group: lang.config.language || lang.config.name,
+            icon: lang.config.icon, // add icon for the language
+            pages: modules.map(module => 
+              `docs/sdk-reference/${lang.key}/${version}/${module}`
+            )
+          };
+        }).filter(Boolean);
 
         return {
-          // mark first version as @latest
-          version: index === 0 ? `${version}@latest` : version,
-          groups: [
-            {
-              group: `${config.name} ${version}`,
-              pages: modules.map(module => 
-                `docs/sdk-reference/${sdkKey}/${version}/${module}`
-              )
-            }
-          ]
+          version: displayVersion,
+          default: index === 0,
+          groups
         };
       })
     };
 
-    // store with order for sorting
-    navigation.push({ ...dropdown, _order: config.order });
+    navigation.push({ ...dropdown, _order: family.order });
   }
 
   // sort by order and remove _order field
   return navigation
     .sort((a, b) => a._order - b._order)
     .map(({ _order, ...rest }) => rest);
+}
+
+/**
+ * Get display name for SDK family
+ */
+function getFamilyDisplayName(family) {
+  const names = {
+    'cli': 'CLI',
+    'sdk': 'SDK',
+    'code-interpreter': 'Code Interpreter SDK',
+    'desktop': 'Desktop SDK'
+  };
+  return names[family] || family;
+}
+
+/**
+ * Get icon for SDK family (prefer brackets-curly for multi-language SDKs)
+ */
+function getFirstIcon(family, defaultIcon) {
+  if (family === 'sdk' || family === 'code-interpreter' || family === 'desktop') {
+    return 'brackets-curly';
+  }
+  return defaultIcon;
 }
 
 /**
@@ -174,9 +253,14 @@ function main() {
   
   // summary
   for (const sdk of navigation) {
-    const totalPages = sdk.versions.reduce((sum, v) => 
-      sum + v.groups.reduce((s, g) => s + g.pages.length, 0), 0
-    );
+    const totalPages = sdk.versions.reduce((sum, v) => {
+      if (v.pages) {
+        return sum + v.pages.length;
+      } else if (v.groups) {
+        return sum + v.groups.reduce((s, g) => s + g.pages.length, 0);
+      }
+      return sum;
+    }, 0);
     console.log(`   - ${sdk.dropdown}: ${sdk.versions.length} versions, ${totalPages} pages`);
   }
 }
