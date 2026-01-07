@@ -2,12 +2,28 @@
 
 process_mdx() {
     local file="$1"
-    local tmp_file="${file}.tmp"
+    local tmp="${file}.tmp"
     
-    sed '/<a[^>]*>.*<\/a>/d' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
-    sed '/^# /d' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
-    sed '/^## / s/ Objects$//' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
-    sed 's/^####/###/' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
+    sed '/<a[^>]*>.*<\/a>/d' "$file" > "$tmp" && mv "$tmp" "$file"
+    sed '/^# /d' "$file" > "$tmp" && mv "$tmp" "$file"
+    sed '/^## / s/ Objects$//' "$file" > "$tmp" && mv "$tmp" "$file"
+    sed 's/^####/###/' "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
+process_package() {
+    local pkg="$1"
+    local sdk_dir="$2"
+    local name="${pkg##*.}"
+    name="${name#e2b_}"
+    
+    echo "    → Processing $pkg..."
+    
+    if poetry run pydoc-markdown -p "$pkg" > "$sdk_dir/sdk_ref/${name}.mdx" 2>/dev/null; then
+        process_mdx "$sdk_dir/sdk_ref/${name}.mdx"
+    else
+        echo "    ⚠️  Failed to generate docs for $pkg"
+        rm -f "$sdk_dir/sdk_ref/${name}.mdx"
+    fi
 }
 
 generate_pydoc() {
@@ -21,31 +37,12 @@ generate_pydoc() {
     echo "  → Generating documentation for packages..."
     
     for pkg in $packages; do
-        local output_name="${pkg##*.}"
-        echo "    → Processing ${pkg}..."
-        
-        if poetry run pydoc-markdown -p "$pkg" > "sdk_ref/${output_name}.mdx" 2>/dev/null; then
-            process_mdx "sdk_ref/${output_name}.mdx"
-        else
-            echo "    ⚠️  Failed to generate docs for ${pkg}"
-            rm -f "sdk_ref/${output_name}.mdx"
-        fi
+        process_package "$pkg" "$sdk_dir"
     done
     
-    if [[ -n "$submodules" ]]; then
-        for submod in $submodules; do
-            local output_name="${submod##*.}"
-            echo "    → Processing ${submod}..."
-            
-            if poetry run pydoc-markdown -p "$submod" > "sdk_ref/${output_name}.mdx" 2>/dev/null; then
-                process_mdx "sdk_ref/${output_name}.mdx"
-            else
-                echo "    ⚠️  Failed to generate docs for ${submod}"
-                rm -f "sdk_ref/${output_name}.mdx"
-            fi
-        done
-    fi
+    for submod in $submodules; do
+        process_package "$submod" "$sdk_dir"
+    done
     
     return 0
 }
-
