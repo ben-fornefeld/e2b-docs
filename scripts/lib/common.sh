@@ -23,6 +23,41 @@ version_exists() {
     [[ -d "$version_dir" ]] && [[ -n "$(ls -A "$version_dir"/*.mdx 2>/dev/null)" ]]
 }
 
+# get all locally generated versions for an SDK (only those with MDX files)
+get_local_versions() {
+    local sdk_key="$1"
+    local docs_dir="$2"
+    local sdk_ref_dir="$docs_dir/docs/sdk-reference/$sdk_key"
+    
+    if [[ ! -d "$sdk_ref_dir" ]]; then
+        return 0
+    fi
+    
+    find "$sdk_ref_dir" -maxdepth 1 -type d \( -name "v*" -o -name "[0-9]*" \) 2>/dev/null | \
+        while read -r dir; do
+            # only include if has MDX files
+            if [[ -n "$(ls -A "$dir"/*.mdx 2>/dev/null)" ]]; then
+                basename "$dir"
+            fi
+        done | sort
+}
+
+# find missing versions using set difference (faster than looping)
+find_missing_versions() {
+    local remote_versions="$1"
+    local local_versions="$2"
+    
+    if [[ -z "$local_versions" ]]; then
+        echo "$remote_versions"
+        return 0
+    fi
+    
+    # use comm to find versions in remote but not in local
+    comm -13 \
+        <(echo "$local_versions") \
+        <(echo "$remote_versions" | sort)
+}
+
 # validate version string format
 is_valid_version() {
     local version="$1"
@@ -227,7 +262,7 @@ install_dependencies() {
             fi
             ;;
         pydoc)
-            poetry install --quiet 2>/dev/null || pip install pydoc-markdown
+            poetry install --quiet 2>/dev/null || pip install --break-system-packages pydoc-markdown 2>&1
             ;;
         cli)
             if command -v pnpm &> /dev/null; then
@@ -237,6 +272,34 @@ install_dependencies() {
             fi
             ;;
     esac
+}
+
+# convert to title case, handling snake_case
+to_title_case() {
+    local str="$1"
+    if [[ -z "$str" ]]; then
+        echo ""
+        return
+    fi
+    
+    # replace underscores with spaces, then capitalize each word
+    local result=""
+    local word_start=true
+    
+    for (( i=0; i<${#str}; i++ )); do
+        local char="${str:$i:1}"
+        if [[ "$char" == "_" ]]; then
+            result="$result "
+            word_start=true
+        elif [[ "$word_start" == true ]]; then
+            result="$result$(echo "$char" | tr '[:lower:]' '[:upper:]')"
+            word_start=false
+        else
+            result="$result$char"
+        fi
+    done
+    
+    echo "$result"
 }
 
 flatten_markdown() {
@@ -259,12 +322,16 @@ flatten_markdown() {
     
     find . -type d -empty -delete 2>/dev/null || true
     
+    # remove standalone index.md files (not needed for Mintlify)
+    rm -f index.md
+    
     shopt -s nullglob
     for file in *.md; do
         local mdx_file="${file%.md}.mdx"
+        local title=$(to_title_case "$(basename "$file" .md)")
         {
             echo "---"
-            echo "sidebarTitle: \"$(basename "$file" .md)\""
+            echo "sidebarTitle: \"$title\""
             echo "mode: \"center\""
             echo "---"
             echo ""
@@ -272,14 +339,14 @@ flatten_markdown() {
         } > "$mdx_file"
         rm "$file"
     done
-    shopt -u nullglob
     
     for file in *.mdx; do
         if ! head -n1 "$file" | grep -q "^---$"; then
             local tmp_file="${file}.tmp"
+            local title=$(to_title_case "$(basename "$file" .mdx)")
             {
                 echo "---"
-                echo "sidebarTitle: \"$(basename "$file" .mdx)\""
+                echo "sidebarTitle: \"$title\""
                 echo "mode: \"center\""
                 echo "---"
                 echo ""
@@ -288,6 +355,10 @@ flatten_markdown() {
             mv "$tmp_file" "$file"
         fi
     done
+    shopt -u nullglob
+    
+    # remove index.mdx files (not needed for Mintlify)
+    rm -f index.mdx
 }
 
 copy_to_docs() {
@@ -296,16 +367,61 @@ copy_to_docs() {
     local sdk_name="$3"
     local version="$4"
     
+    # remove any literal "*.mdx" file that might have been created by error
+    rm -f "$src_dir/*.mdx" 2>/dev/null
+    
+    # use find to count actual .mdx files (not globs)
+    local mdx_count=$(find "$src_dir" -maxdepth 1 -name "*.mdx" -type f 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [[ "$mdx_count" -eq 0 ]]; then
+        echo "  ❌ No MDX files generated - documentation generation failed"
+        echo "  ❌ This indicates a problem with the doc generator (typedoc/pydoc)"
+        return 1
+    fi
+    
+    # verify files are valid (not empty, not just "*.mdx")
+    local has_valid_file=false
+    while IFS= read -r -d '' file; do
+        local filename=$(basename "$file")
+        # check if filename is literally "*.mdx" or file is empty
+        if [[ "$filename" == "*.mdx" ]]; then
+            echo "  ❌ Found invalid file: $filename (glob pattern, not a real file)"
+            rm -f "$file"
+            continue
+        fi
+        if [[ ! -s "$file" ]]; then
+            echo "  ⚠️  Found empty file: $filename"
+            continue
+        fi
+        has_valid_file=true
+    done < <(find "$src_dir" -maxdepth 1 -name "*.mdx" -type f -print0)
+    
+    if [[ "$has_valid_file" != "true" ]]; then
+        echo "  ❌ No valid MDX files generated - all files are empty or invalid"
+        return 1
+    fi
+    
+    # recount after cleanup
+    mdx_count=$(find "$src_dir" -maxdepth 1 -name "*.mdx" -type f 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [[ "$mdx_count" -eq 0 ]]; then
+        echo "  ❌ No valid MDX files to copy"
+        return 1
+    fi
+    
+    # only create directory if we have files to copy
     mkdir -p "$target_dir"
     
-    echo "  → Copying files to $target_dir"
-    if cp "$src_dir"/*.mdx "$target_dir/" 2>/dev/null; then
+    echo "  → Copying $mdx_count files to $target_dir"
+    if find "$src_dir" -maxdepth 1 -name "*.mdx" -type f -exec cp {} "$target_dir/" \; 2>/dev/null; then
         echo "  → Generated files:"
         ls -la "$target_dir"
         echo "  ✅ $sdk_name $version complete"
         return 0
     else
-        echo "  ⚠️  No MDX files to copy"
+        echo "  ❌ Failed to copy MDX files"
+        # cleanup empty directory if copy failed
+        rmdir "$target_dir" 2>/dev/null || true
         return 1
     fi
 }

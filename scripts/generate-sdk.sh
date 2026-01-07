@@ -70,29 +70,41 @@ if [[ "$VERSION" == "all" ]]; then
     fi
     
     TOTAL_COUNT=$(echo "$ALL_VERSIONS" | wc -l | tr -d ' ')
-    EXISTING_COUNT=$(count_sdk_versions "$SDK_KEY" "$DOCS_DIR")
+    
+    # get local versions in one batch (fast)
+    LOCAL_VERSIONS=$(get_local_versions "$SDK_KEY" "$DOCS_DIR")
+    if [[ -n "$LOCAL_VERSIONS" ]]; then
+        EXISTING_COUNT=$(echo "$LOCAL_VERSIONS" | wc -l | tr -d ' ')
+    else
+        EXISTING_COUNT=0
+    fi
     
     echo ""
     echo "  📊 Version Discovery Report:"
     echo "     Total tags found: $TOTAL_COUNT"
     echo "     Already generated: $EXISTING_COUNT"
     
-    # filter to only missing versions
-    MISSING_VERSIONS=""
-    SKIP_COUNT=0
-    for version in $ALL_VERSIONS; do
-        if version_exists "$SDK_KEY" "$version" "$DOCS_DIR"; then
-            ((SKIP_COUNT++)) || true
-        else
-            if [[ -z "$MISSING_VERSIONS" ]]; then
-                MISSING_VERSIONS="$version"
-            else
-                MISSING_VERSIONS="$MISSING_VERSIONS $version"
-            fi
+    # early exit if all versions exist (O(1) check)
+    if [[ $TOTAL_COUNT -eq $EXISTING_COUNT && $EXISTING_COUNT -gt 0 ]]; then
+        echo "  → Quick check: counts match, verifying..."
+        
+        # verify using batch set difference
+        MISSING_VERSIONS=$(find_missing_versions "$ALL_VERSIONS" "$LOCAL_VERSIONS")
+        
+        if [[ -z "$MISSING_VERSIONS" ]]; then
+            echo "  ✅ All $TOTAL_COUNT versions already generated (verified)"
+            exit 0
         fi
-    done
+    else
+        # use batch set difference (O(n + m) instead of O(n * m))
+        MISSING_VERSIONS=$(find_missing_versions "$ALL_VERSIONS" "$LOCAL_VERSIONS")
+    fi
     
-    MISSING_COUNT=$(echo "$MISSING_VERSIONS" | wc -w | tr -d ' ')
+    if [[ -n "$MISSING_VERSIONS" ]]; then
+        MISSING_COUNT=$(echo "$MISSING_VERSIONS" | wc -l | tr -d ' ')
+    else
+        MISSING_COUNT=0
+    fi
     echo "     To generate: $MISSING_COUNT"
     echo ""
     
@@ -219,8 +231,24 @@ if [[ $FAILED_COUNT -gt 0 ]]; then
     echo "     Failed: $FAILED_COUNT ($FAILED_VERSIONS)"
 fi
 
-# exit with error if all failed and required
-if [[ $GENERATED_COUNT -eq 0 && "$REQUIRED" == "true" && -n "$VERSIONS_TO_PROCESS" ]]; then
-    echo "  ❌ All versions failed to generate"
-    exit 1
+# strict error handling - abort on unexpected failures
+if [[ $FAILED_COUNT -gt 0 ]]; then
+    if [[ "$REQUIRED" == "true" ]]; then
+        # any failure in required SDK = abort
+        echo ""
+        echo "  ❌ WORKFLOW ABORTED: Required SDK '$SDK_KEY' has failures"
+        echo "  ❌ Failed versions: $FAILED_VERSIONS"
+        echo "  ❌ This indicates an unexpected error that must be fixed"
+        exit 1
+    elif [[ $GENERATED_COUNT -eq 0 ]]; then
+        # all versions failed for non-required SDK = abort
+        echo ""
+        echo "  ❌ WORKFLOW ABORTED: All versions of '$SDK_KEY' failed to generate"
+        echo "  ❌ Failed versions: $FAILED_VERSIONS"
+        echo "  ❌ This indicates an unexpected error that must be fixed"
+        exit 1
+    else
+        # some succeeded, some failed for non-required SDK = warn but continue
+        echo "  ⚠️  Some versions failed but continuing (SDK not required)"
+    fi
 fi
