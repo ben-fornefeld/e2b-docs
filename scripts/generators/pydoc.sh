@@ -1,20 +1,12 @@
 #!/usr/bin/env bash
 
-# pydoc-markdown generator for Python SDKs
-# Generates markdown documentation using pydoc-markdown
-
-# process generated mdx files (cleanup formatting)
 process_mdx() {
     local file="$1"
     local tmp_file="${file}.tmp"
     
-    # remove package path display links
     sed '/<a[^>]*>.*<\/a>/d' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
-    # remove h1 headers
     sed '/^# /d' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
-    # remove " Objects" suffix from h2 headers
     sed '/^## / s/ Objects$//' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
-    # convert h4 to h3
     sed 's/^####/###/' "${file}" > "${tmp_file}" && mv "${tmp_file}" "${file}"
 }
 
@@ -28,9 +20,8 @@ generate_pydoc() {
     
     echo "  → Generating documentation for packages..."
     
-    # generate for each main package
     for pkg in $packages; do
-        local output_name="${pkg##*.}"  # get last part after dot
+        local output_name="${pkg##*.}"
         echo "    → Processing ${pkg}..."
         
         if poetry run pydoc-markdown -p "$pkg" > "sdk_ref/${output_name}.mdx" 2>/dev/null; then
@@ -41,7 +32,6 @@ generate_pydoc() {
         fi
     done
     
-    # generate for submodules if provided
     if [[ -n "$submodules" ]]; then
         for submod in $submodules; do
             local output_name="${submod##*.}"

@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 
-# TypeDoc generator for JavaScript SDKs
-# Generates markdown documentation using TypeDoc with custom theme
-
 generate_typedoc() {
     local sdk_dir="$1"
     local configs_dir="$2"
     
     cd "$sdk_dir"
     
-    # check if repo has its own typedoc config
     if [[ -f "typedoc.json" ]]; then
         echo "  → Running TypeDoc with repo config..."
         npx typedoc --plugin typedoc-plugin-markdown \

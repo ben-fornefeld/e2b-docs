@@ -4,8 +4,6 @@
       "displayName": "CLI",
       "icon": "terminal",
       "order": 4,
-      "family": "cli",
-      "standalone": true,
       "repo": "https://github.com/e2b-dev/e2b.git",
       "tagPattern": "@e2b/cli@",
       "tagFormat": "@e2b/cli@{version}",
@@ -14,11 +12,9 @@
       "required": true
     },
     "js-sdk": {
-      "displayName": "JavaScript",
+      "displayName": "JavaScript SDK",
       "icon": "square-js",
       "order": 1,
-      "family": "sdk",
-      "language": "JavaScript",
       "repo": "https://github.com/e2b-dev/e2b.git",
       "tagPattern": "e2b@",
       "tagFormat": "e2b@{version}",
@@ -27,11 +23,9 @@
       "required": true
     },
     "python-sdk": {
-      "displayName": "Python",
+      "displayName": "Python SDK",
       "icon": "python",
-      "order": 1,
-      "family": "sdk",
-      "language": "Python",
+      "order": 2,
       "repo": "https://github.com/e2b-dev/e2b.git",
       "tagPattern": "e2b@",
       "tagFormat": "e2b@{version}",
@@ -51,11 +45,9 @@
       }
     },
     "code-interpreter-js-sdk": {
-      "displayName": "JavaScript",
+      "displayName": "Code Interpreter JavaScript SDK",
       "icon": "square-js",
-      "order": 2,
-      "family": "code-interpreter",
-      "language": "JavaScript",
+      "order": 5,
       "repo": "https://github.com/e2b-dev/code-interpreter.git",
       "tagPattern": "@e2b/code-interpreter@",
       "tagFormat": "@e2b/code-interpreter@{version}",
@@ -64,11 +56,9 @@
       "required": false
     },
     "code-interpreter-python-sdk": {
-      "displayName": "Python",
+      "displayName": "Code Interpreter Python SDK",
       "icon": "python",
-      "order": 2,
-      "family": "code-interpreter",
-      "language": "Python",
+      "order": 6,
       "repo": "https://github.com/e2b-dev/code-interpreter.git",
       "tagPattern": "e2b-code-interpreter@",
       "tagFormat": "e2b-code-interpreter@{version}",
@@ -78,11 +68,9 @@
       "packages": ["e2b_code_interpreter"]
     },
     "desktop-js-sdk": {
-      "displayName": "JavaScript",
+      "displayName": "Desktop JavaScript SDK",
       "icon": "square-js",
-      "order": 3,
-      "family": "desktop",
-      "language": "JavaScript",
+      "order": 7,
       "repo": "https://github.com/e2b-dev/desktop.git",
       "tagPattern": "@e2b/desktop@",
       "tagFormat": "@e2b/desktop@{version}",
@@ -91,11 +79,9 @@
       "required": false
     },
     "desktop-python-sdk": {
-      "displayName": "Python",
+      "displayName": "Desktop Python SDK",
       "icon": "python",
-      "order": 3,
-      "family": "desktop",
-      "language": "Python",
+      "order": 8,
       "repo": "https://github.com/e2b-dev/desktop.git",
       "tagPattern": "e2b-desktop@",
       "tagFormat": "e2b-desktop@{version}",

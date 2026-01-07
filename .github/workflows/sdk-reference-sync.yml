@@ -67,17 +67,14 @@ jobs:
       - name: Determine SDK and Version
         id: params
         run: |
-          # handle workflow_dispatch
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             SDK="${{ github.event.inputs.sdk }}"
             VERSION="${{ github.event.inputs.version }}"
-          # handle repository_dispatch from e2b repo
           elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             SDK="${{ github.event.client_payload.sdk }}"
             VERSION="${{ github.event.client_payload.version }}"
           fi
 
-          # fallback to defaults if empty
           echo "sdk=${SDK:-all}" >> $GITHUB_OUTPUT
           echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
 
@@ -104,12 +101,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # stage changes
           git add docs/sdk-reference/
-          git add sdk_navigation.json
           git add docs.json
 
-          # commit if there are changes
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

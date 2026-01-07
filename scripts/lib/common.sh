@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-# Shared utility functions for SDK documentation generation
-
-# resolve latest version for a repo and tag pattern
-# args: repo, tag_pattern, version
-# returns: resolved version (e.g., "v2.9.0") or empty string on failure
 resolve_version() {
     local repo="$1"
     local tag_pattern="$2"
@@ -15,7 +10,6 @@ resolve_version() {
         return 0
     fi
     
-    # escape special characters in tag pattern for sed (needs different escaping than grep)
     local sed_escaped_pattern=$(echo "$tag_pattern" | sed 's/[\/&@]/\\&/g')
     
     local resolved
@@ -31,8 +25,6 @@ resolve_version() {
     echo "$resolved"
 }
 
-# clone repo at specific tag with fallback to main branch
-# args: repo, git_tag, target_dir
 clone_repo() {
     local repo="$1"
     local git_tag="$2"
@@ -49,9 +41,6 @@ clone_repo() {
     }
 }
 
-# find SDK directory from list of possible paths
-# args: base_dir, path1, path2, ...
-# returns: full path to SDK directory or empty string
 find_sdk_directory() {
     local base_dir="$1"
     shift
@@ -67,8 +56,6 @@ find_sdk_directory() {
     return 1
 }
 
-# install dependencies based on generator type
-# args: sdk_dir, generator
 install_dependencies() {
     local sdk_dir="$1"
     local generator="$2"
@@ -100,15 +87,12 @@ install_dependencies() {
     esac
 }
 
-# flatten markdown files structure for Mintlify
-# args: sdk_ref_dir
 flatten_markdown() {
     local sdk_ref_dir="$1"
     
     cd "$sdk_ref_dir"
     rm -f README.md
     
-    # flatten nested structure: move all md files to root level
     find . -mindepth 2 -type f -name "*.md" 2>/dev/null | while read -r file; do
         local dir=$(dirname "$file")
         local filename=$(basename "$file")
@@ -121,18 +105,15 @@ flatten_markdown() {
         fi
     done
     
-    # remove empty directories
     find . -type d -empty -delete 2>/dev/null || true
     
-    # rename .md to .mdx and add frontmatter (if any .md files exist)
     shopt -s nullglob
     for file in *.md; do
         local mdx_file="${file%.md}.mdx"
-        # add frontmatter to disable TOC for SDK reference pages
         {
             echo "---"
             echo "sidebarTitle: \"$(basename "$file" .md)\""
-            echo "toc: false"
+            echo "mode: \"center\""
             echo "---"
             echo ""
             cat "$file"
@@ -141,14 +122,13 @@ flatten_markdown() {
     done
     shopt -u nullglob
     
-    # add frontmatter to existing .mdx files (from pydoc generator)
     for file in *.mdx; do
         if ! head -n1 "$file" | grep -q "^---$"; then
             local tmp_file="${file}.tmp"
             {
                 echo "---"
                 echo "sidebarTitle: \"$(basename "$file" .mdx)\""
-                echo "toc: false"
+                echo "mode: \"center\""
                 echo "---"
                 echo ""
                 cat "$file"
@@ -158,8 +138,6 @@ flatten_markdown() {
     done
 }
 
-# copy generated docs to target directory with reporting
-# args: src_dir, target_dir, sdk_name, version
 copy_to_docs() {
     local src_dir="$1"
     local target_dir="$2"
@@ -178,21 +156,5 @@ copy_to_docs() {
         echo "  ⚠️  No MDX files to copy"
         return 1
     fi
-}
-
-# read a value from JSON config using node
-# args: json_file, jq_path (e.g., ".sdks.js-sdk.displayName")
-json_get() {
-    local json_file="$1"
-    local path="$2"
-    node -e "console.log(require('$json_file')$path || '')"
-}
-
-# read array from JSON config using node
-# args: json_file, jq_path (e.g., ".sdks.js-sdk.packages")
-json_get_array() {
-    local json_file="$1"
-    local path="$2"
-    node -e "const v = require('$json_file')$path; if(Array.isArray(v)) console.log(v.join(' '));"
 }
 
