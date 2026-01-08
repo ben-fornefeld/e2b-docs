@@ -23,14 +23,14 @@ export async function installDependencies(
         });
       } catch {
         log.warn("pnpm failed, falling back to npm...", 1);
-        await execa(
-          "npm",
-          ["install", "--legacy-peer-deps", "--force", "--prefer-offline"],
-          {
-            cwd: sdkDir,
-            stdio: "inherit",
-          }
-        );
+          await execa(
+            "npm",
+            ["install", "--legacy-peer-deps", "--force", "--prefer-offline"],
+            {
+              cwd: sdkDir,
+              stdio: "inherit",
+            }
+          );
       }
       break;
     }

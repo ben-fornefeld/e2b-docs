@@ -268,13 +268,13 @@ function handleGenerationFailures(
 
   const shouldAbort = config.required || generated === 0;
   if (shouldAbort) {
-    log.blank();
+      log.blank();
     const reason = config.required
       ? "Required SDK has failures"
       : "All versions failed";
     log.error(`WORKFLOW ABORTED: ${reason}`, 1);
-    log.error(`Failed: ${failedVersions.join(" ")}`, 1);
-    process.exit(1);
+      log.error(`Failed: ${failedVersions.join(" ")}`, 1);
+      process.exit(1);
   }
 }
 
