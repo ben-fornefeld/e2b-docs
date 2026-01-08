@@ -55,8 +55,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Node dependencies
+      - name: Install root dependencies
         run: pnpm install
+
+      - name: Install generator dependencies
+        working-directory: sdk-reference-generator
+        run: pnpm install --frozen-lockfile
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
@@ -81,12 +85,9 @@ jobs:
           echo "version=${VERSION:-all}" >> $GITHUB_OUTPUT
 
       - name: Generate SDK Reference
+        working-directory: sdk-reference-generator
         run: |
-          chmod +x scripts/generate-sdk-reference.sh
-          chmod +x scripts/generate-sdk.sh
-          chmod +x scripts/lib/*.sh
-          chmod +x scripts/generators/*.sh
-          ./scripts/generate-sdk-reference.sh \
+          pnpm run generate \
             --sdk "${{ steps.params.outputs.sdk }}" \
             --version "${{ steps.params.outputs.version }}"
 
@@ -94,9 +95,6 @@ jobs:
         run: |
           echo "Generated SDK reference files:"
           find docs/sdk-reference -type f -name "*.mdx" 2>/dev/null | head -20 || echo "No MDX files found"
-          echo ""
-          echo "Navigation JSON:"
-          cat sdk_navigation.json 2>/dev/null | head -50 || echo "No navigation file found"
 
       - name: Commit and push changes
         run: |
