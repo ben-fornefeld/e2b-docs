@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import { loadConfig } from "./lib/config.js";
+import { getConfig } from "./lib/config.js";
 import { sortVersionsDescending } from "./lib/utils.js";
 import { CONSTANTS } from "./lib/constants.js";
 import { log } from "./lib/log.js";
@@ -41,7 +41,7 @@ async function getModules(versionDir: string): Promise<string[]> {
 export async function buildNavigation(
   docsDir: string
 ): Promise<NavigationDropdown[]> {
-  const config = await loadConfig();
+  const config = await getConfig();
   const sdkRefDir = path.join(docsDir, CONSTANTS.DOCS_SDK_REF_PATH);
 
   if (!(await fs.pathExists(sdkRefDir))) {

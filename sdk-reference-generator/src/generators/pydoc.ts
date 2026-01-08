@@ -6,7 +6,7 @@ import { log } from "../lib/log.js";
 
 async function discoverPythonPackages(
   sdkDir: string,
-  basePackage: string = "e2b"
+  basePackage: string
 ): Promise<string[]> {
   try {
     const script = `
@@ -111,7 +111,7 @@ async function processPackage(pkg: string, sdkDir: string): Promise<boolean> {
       await fs.remove(outputFile);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -123,9 +123,9 @@ async function processPackage(pkg: string, sdkDir: string): Promise<boolean> {
 
 export async function generatePydoc(
   sdkDir: string,
-  fallbackPackages: string[],
-  submodules?: Record<string, string[]>,
-  basePackage?: string
+  fallbackPackages: readonly string[],
+  submodules?: Record<string, readonly string[]>,
+  basePackage: string = "e2b"
 ): Promise<string> {
   const outputDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
   await fs.ensureDir(outputDir);
@@ -148,7 +148,10 @@ export async function generatePydoc(
     if (result) successful++;
   }
 
-  log.step(`Generated docs for ${successful}/${packagesToProcess.length} packages`, 1);
+  log.step(
+    `Generated docs for ${successful}/${packagesToProcess.length} packages`,
+    1
+  );
 
   if (submodules) {
     for (const [parentPkg, submoduleNames] of Object.entries(submodules)) {

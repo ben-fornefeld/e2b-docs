@@ -22,9 +22,6 @@ export async function runGenerator(
 
     case "cli":
       return await generateCli(sdkDir);
-
-    default:
-      throw new Error(`Unknown generator: ${config.generator}`);
   }
 }
 

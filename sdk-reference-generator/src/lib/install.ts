@@ -29,17 +29,17 @@ async function installDependencies(
             cwd: sdkDir,
             stdio: 'inherit',
           });
-        } catch {
+      } catch {
           log.warn('pnpm failed, trying npm...', 1);
-          await execa(
+        await execa(
             'npm',
             ['install', '--legacy-peer-deps', '--force', '--prefer-offline'],
-            {
-              cwd: sdkDir,
+          {
+            cwd: sdkDir,
               stdio: 'inherit',
-            }
-          );
-        }
+          }
+        );
+      }
       }
       break;
     }

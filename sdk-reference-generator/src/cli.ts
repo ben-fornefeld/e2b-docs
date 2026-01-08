@@ -5,7 +5,7 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
-import { initConfig, getAllSDKKeys } from "./lib/config.js";
+import { getAllSDKKeys } from "./lib/config.js";
 import { generateSDK } from "./generator.js";
 import { buildNavigation, mergeNavigation } from "./navigation.js";
 import { verifyGeneratedDocs, verifyDocsJson } from "./lib/verify.js";
@@ -18,8 +18,6 @@ const __dirname = path.dirname(__filename);
 const SCRIPT_DIR = path.resolve(__dirname, "..");
 const DOCS_DIR = path.resolve(SCRIPT_DIR, "..");
 const CONFIGS_DIR = path.join(SCRIPT_DIR, "configs");
-
-initConfig(SCRIPT_DIR);
 
 const program = new Command()
   .name("generate-sdk-reference")
@@ -48,7 +46,9 @@ async function main(): Promise<void> {
   log.stats([
     { label: "SDK", value: opts.sdk },
     { label: "Version", value: opts.version },
-    ...(opts.limit ? [{ label: "Limit", value: `${opts.limit} versions` }] : []),
+    ...(opts.limit
+      ? [{ label: "Limit", value: `${opts.limit} versions` }]
+      : []),
     ...(opts.force ? [{ label: "Force", value: "true" }] : []),
     { label: "Temp", value: tempDir },
   ]);
@@ -120,13 +120,16 @@ async function main(): Promise<void> {
 
     log.blank();
     log.summary("Final Summary");
-    log.stats([
-      { label: "Generated", value: totalGenerated },
-      ...(totalFailed > 0 ? [{ label: "Failed", value: totalFailed }] : []),
-      { label: "Total MDX files", value: verification.stats.totalMdxFiles },
-      { label: "Total SDKs", value: verification.stats.totalSDKs },
-      { label: "Total versions", value: verification.stats.totalVersions },
-    ], 0);
+    log.stats(
+      [
+        { label: "Generated", value: totalGenerated },
+        ...(totalFailed > 0 ? [{ label: "Failed", value: totalFailed }] : []),
+        { label: "Total MDX files", value: verification.stats.totalMdxFiles },
+        { label: "Total SDKs", value: verification.stats.totalSDKs },
+        { label: "Total versions", value: verification.stats.totalVersions },
+      ],
+      0
+    );
   } finally {
     await fs.remove(tempDir);
   }
