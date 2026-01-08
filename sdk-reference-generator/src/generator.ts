@@ -6,6 +6,7 @@ import type {
   GenerationResult,
 } from "./types.js";
 import { getSDKConfig } from "./lib/config.js";
+import { log } from "./lib/log.js";
 import {
   fetchRemoteTags,
   cloneAtTag,
@@ -32,10 +33,8 @@ async function generateVersion(
   const repoDir = path.join(ctx.tempDir, `${sdkKey}-${version}`);
 
   try {
-    const tagName = config.tagFormat.replace(
-      "{version}",
-      version.replace(/^v/, "")
-    );
+    const versionWithoutV = version.replace(/^v/, "");
+    const tagName = config.tagFormat.replace("{version}", versionWithoutV);
 
     await cloneAtTag(config.repo, tagName, repoDir);
 
@@ -48,18 +47,19 @@ async function generateVersion(
 
     await installWithCache(sdkDir, config.generator, ctx.tempDir);
 
-    await runGenerator(sdkDir, config, ctx);
+    const generatedDocsDir = await runGenerator(sdkDir, config, ctx);
 
-    const generatedDocsDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
-    if (!(await fs.pathExists(generatedDocsDir))) {
-      throw new Error("No sdk_ref directory generated");
+    const sdkRefDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
+    if (generatedDocsDir !== sdkRefDir) {
+      log.info(`Normalizing ${path.basename(generatedDocsDir)} to sdk_ref`, 1);
+      await fs.move(generatedDocsDir, sdkRefDir);
     }
 
-    await flattenMarkdown(generatedDocsDir);
+    await flattenMarkdown(sdkRefDir);
 
     const destDir = buildSDKPath(ctx.docsDir, sdkKey, version);
     const success = await copyToDocs(
-      generatedDocsDir,
+      sdkRefDir,
       destDir,
       config.displayName,
       version
@@ -81,53 +81,70 @@ export async function generateSDK(
   const config = await getSDKConfig(sdkKey);
 
   if (!config) {
-    console.log(`  ❌ SDK '${sdkKey}' not found in config`);
+    log.error(`SDK '${sdkKey}' not found in config`, 1);
     return { generated: 0, failed: 1, failedVersions: [sdkKey] };
   }
 
-  console.log(`  → ${config.displayName} version: ${versionArg}`);
+  log.info(`${config.displayName} version: ${versionArg}`, 1);
 
   let versionsToProcess: string[] = [];
 
   if (versionArg === "all") {
-    console.log("  → Discovering all versions...");
+    log.info("Discovering all versions...", 1);
 
     let remote = await fetchRemoteTags(config.repo, config.tagPattern);
 
     if (remote.length === 0) {
       if (config.required) {
-        console.log("  ❌ No tags found");
+        log.error("No tags found", 1);
         return { generated: 0, failed: 1, failedVersions: ["no-tags"] };
       }
-      console.log("  ⚠️  No tags found, skipping...");
+      log.warn("No tags found, skipping...", 1);
       return { generated: 0, failed: 0, failedVersions: [] };
     }
 
     if (config.minVersion) {
       remote = filterByMinVersion(remote, config.minVersion);
-      console.log(`  → Filtered to versions >= ${config.minVersion}`);
+      log.info(`Filtered to versions >= ${config.minVersion}`, 1);
     }
 
     if (ctx.limit && ctx.limit > 0) {
       remote = remote.slice(0, ctx.limit);
-      console.log(`  → Limited to last ${ctx.limit} versions`);
+      log.info(`Limited to last ${ctx.limit} versions`, 1);
     }
 
     const local = await fetchLocalVersions(sdkKey, ctx.docsDir);
 
-    console.log("");
-    console.log("  📊 Version Discovery:");
-    console.log(`     Remote: ${remote.length}`);
-    console.log(`     Local: ${local.length}`);
+    log.blank();
+    log.step("Version Discovery", 1);
+    log.stats(
+      [
+        { label: "Remote", value: remote.length },
+        { label: "Local", value: local.length },
+      ],
+      1
+    );
 
-    const missing = diffVersions(remote, local);
+    const missing = ctx.force ? remote : diffVersions(remote, local);
 
-    console.log(`     Missing: ${missing.length}`);
-    console.log("");
+    log.stats(
+      [
+        {
+          label: ctx.force ? "To Generate (forced)" : "Missing",
+          value: missing.length,
+        },
+      ],
+      1
+    );
+    log.blank();
 
     if (missing.length === 0) {
-      console.log("  ✅ Nothing to generate");
+      log.success("Nothing to generate", 1);
       return { generated: 0, failed: 0, failedVersions: [] };
+    }
+
+    if (ctx.force && local.length > 0) {
+      log.warn("FORCE MODE: Will regenerate existing versions", 1);
     }
 
     versionsToProcess = missing;
@@ -140,16 +157,20 @@ export async function generateSDK(
 
     if (!resolved) {
       if (config.required) {
-        console.log("  ❌ No tags found");
+        log.error("No tags found", 1);
         return { generated: 0, failed: 1, failedVersions: ["no-tags"] };
       }
-      console.log("  ⚠️  No tags found, skipping...");
+      log.warn("No tags found, skipping...", 1);
       return { generated: 0, failed: 0, failedVersions: [] };
     }
 
-    if (await versionExists(sdkKey, resolved, ctx.docsDir)) {
-      console.log(`  ✓ ${resolved} already exists`);
+    if (!ctx.force && (await versionExists(sdkKey, resolved, ctx.docsDir))) {
+      log.success(`${resolved} already exists`, 1);
       return { generated: 0, failed: 0, failedVersions: [] };
+    }
+
+    if (ctx.force) {
+      log.warn("FORCE MODE: Will regenerate existing version", 1);
     }
 
     versionsToProcess = [resolved];
@@ -160,38 +181,48 @@ export async function generateSDK(
   const failedVersions: string[] = [];
 
   for (const version of versionsToProcess) {
-    console.log("");
-    console.log(`  📦 Generating ${version}...`);
+    log.blank();
+    log.step(`Generating ${version}`, 1);
 
     try {
       await generateVersion(sdkKey, config, version, ctx);
-      console.log(`  ✅ Complete: ${version}`);
+      log.success(`Complete: ${version}`, 1);
       generated++;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.log(`  ❌ Failed: ${version} - ${msg}`);
+      log.error(`Failed: ${version} - ${msg}`, 1);
       failed++;
       failedVersions.push(version);
     }
   }
 
-  console.log("");
-  console.log("  📊 Summary:");
-  console.log(`     Generated: ${generated}`);
-  if (failed > 0) {
-    console.log(`     Failed: ${failed} (${failedVersions.join(" ")})`);
-  }
+  log.blank();
+  log.step("Summary", 1);
+  log.stats(
+    [
+      { label: "Generated", value: generated },
+      ...(failed > 0
+        ? [
+            {
+              label: "Failed",
+              value: `${failed} (${failedVersions.join(" ")})`,
+            },
+          ]
+        : []),
+    ],
+    1
+  );
 
   if (failed > 0) {
     if (config.required) {
-      console.log("");
-      console.log("  ❌ WORKFLOW ABORTED: Required SDK has failures");
-      console.log(`  ❌ Failed: ${failedVersions.join(" ")}`);
+      log.blank();
+      log.error("WORKFLOW ABORTED: Required SDK has failures", 1);
+      log.error(`Failed: ${failedVersions.join(" ")}`, 1);
       process.exit(1);
     } else if (generated === 0) {
-      console.log("");
-      console.log("  ❌ WORKFLOW ABORTED: All versions failed");
-      console.log(`  ❌ Failed: ${failedVersions.join(" ")}`);
+      log.blank();
+      log.error("WORKFLOW ABORTED: All versions failed", 1);
+      log.error(`Failed: ${failedVersions.join(" ")}`, 1);
       process.exit(1);
     }
   }

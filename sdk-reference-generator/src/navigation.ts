@@ -3,6 +3,7 @@ import path from "path";
 import { loadConfig } from "./lib/config.js";
 import { sortVersionsDescending } from "./lib/utils.js";
 import { CONSTANTS } from "./lib/constants.js";
+import { log } from "./lib/log.js";
 import type {
   NavigationDropdown,
   NavigationDropdownWithOrder,
@@ -44,7 +45,7 @@ export async function buildNavigation(
   const sdkRefDir = path.join(docsDir, CONSTANTS.DOCS_SDK_REF_PATH);
 
   if (!(await fs.pathExists(sdkRefDir))) {
-    console.log("⚠️  SDK reference directory not found:", sdkRefDir);
+    log.warn(`SDK reference directory not found: ${sdkRefDir}`);
     return [];
   }
 
@@ -54,17 +55,17 @@ export async function buildNavigation(
     const sdkDir = path.join(sdkRefDir, sdkKey);
 
     if (!(await fs.pathExists(sdkDir))) {
-      console.log(`   Skipping ${sdkKey} (not found)`);
+      log.data(`Skipping ${sdkKey} (not found)`);
       continue;
     }
 
     const versions = await getVersions(sdkDir);
     if (versions.length === 0) {
-      console.log(`   Skipping ${sdkKey} (no versions)`);
+      log.data(`Skipping ${sdkKey} (no versions)`);
       continue;
     }
 
-    console.log(`   Found ${sdkKey}: ${versions.length} versions`);
+    log.data(`Found ${sdkKey}: ${versions.length} versions`);
 
     const dropdown: NavigationDropdownWithOrder = {
       dropdown: sdkConfig.displayName,
@@ -105,7 +106,7 @@ export async function mergeNavigation(
   const docsJsonPath = path.join(docsDir, "docs.json");
 
   if (!(await fs.pathExists(docsJsonPath))) {
-    console.log("❌ docs.json not found");
+    log.error("docs.json not found");
     process.exit(1);
   }
 
@@ -113,18 +114,7 @@ export async function mergeNavigation(
 
   const anchors = docsJson.navigation?.anchors;
   if (!anchors) {
-    console.log("❌ No anchors found in docs.json");
-    process.exit(1);
-  }
-
-  const sdkRefIndex = anchors.findIndex(
-    (a: { anchor?: string }) => a.anchor === CONSTANTS.SDK_REFERENCE_ANCHOR
-  );
-
-  if (sdkRefIndex === -1) {
-    console.log(
-      `❌ ${CONSTANTS.SDK_REFERENCE_ANCHOR} anchor not found in docs.json`
-    );
+    log.error("No anchors found in docs.json");
     process.exit(1);
   }
 
@@ -133,15 +123,26 @@ export async function mergeNavigation(
   );
 
   if (validDropdowns.length === 0) {
-    console.log("⚠️  No SDK versions found, keeping existing docs.json");
+    log.warn("No SDK versions found, keeping existing docs.json");
     return;
   }
 
-  anchors[sdkRefIndex] = {
+  const sdkRefAnchor = {
     anchor: CONSTANTS.SDK_REFERENCE_ANCHOR,
     icon: "brackets-curly",
     dropdowns: validDropdowns,
   };
+
+  const sdkRefIndex = anchors.findIndex(
+    (a: { anchor?: string }) => a.anchor === CONSTANTS.SDK_REFERENCE_ANCHOR
+  );
+
+  if (sdkRefIndex === -1) {
+    log.info(`Creating new ${CONSTANTS.SDK_REFERENCE_ANCHOR} anchor`, 1);
+    anchors.push(sdkRefAnchor);
+  } else {
+    anchors[sdkRefIndex] = sdkRefAnchor;
+  }
 
   await fs.writeJSON(docsJsonPath, docsJson, { spaces: 2 });
   const content = await fs.readFile(docsJsonPath, "utf-8");
@@ -149,9 +150,7 @@ export async function mergeNavigation(
     await fs.appendFile(docsJsonPath, "\n");
   }
 
-  console.log(
-    `✅ Updated docs.json with ${validDropdowns.length} SDK dropdowns`
-  );
+  log.success(`Updated docs.json with ${validDropdowns.length} SDK dropdowns`);
 
   for (const dropdown of validDropdowns) {
     const totalVersions = dropdown.versions.length;
@@ -159,8 +158,8 @@ export async function mergeNavigation(
       (sum, v) => sum + (v.pages?.length || 0),
       0
     );
-    console.log(
-      `   - ${dropdown.dropdown}: ${totalVersions} versions, ${totalPages} pages`
+    log.data(
+      `${dropdown.dropdown}: ${totalVersions} versions, ${totalPages} pages`
     );
   }
 }

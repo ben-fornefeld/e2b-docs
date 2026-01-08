@@ -1,79 +1,114 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
-import fs from 'fs-extra';
-import path from 'path';
-import os from 'os';
-import { fileURLToPath } from 'url';
-import { initConfig, getAllSDKKeys } from './lib/config.js';
-import { generateSDK } from './generator.js';
-import { buildNavigation, mergeNavigation } from './navigation.js';
-import type { GenerationContext, GenerationResult } from './types.js';
+import { Command } from "commander";
+import fs from "fs-extra";
+import path from "path";
+import os from "os";
+import { fileURLToPath } from "url";
+import { initConfig, getAllSDKKeys } from "./lib/config.js";
+import { generateSDK } from "./generator.js";
+import { buildNavigation, mergeNavigation } from "./navigation.js";
+import { verifyGeneratedDocs, verifyDocsJson } from "./lib/verify.js";
+import { log } from "./lib/log.js";
+import type { GenerationContext, GenerationResult } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SCRIPT_DIR = path.resolve(__dirname, '..');
-const DOCS_DIR = path.resolve(SCRIPT_DIR, '..');
-const CONFIGS_DIR = path.join(SCRIPT_DIR, 'configs');
+const SCRIPT_DIR = path.resolve(__dirname, "..");
+const DOCS_DIR = path.resolve(SCRIPT_DIR, "..");
+const CONFIGS_DIR = path.join(SCRIPT_DIR, "configs");
 
 initConfig(SCRIPT_DIR);
 
 const program = new Command()
-  .name('generate-sdk-reference')
-  .description('Generate SDK reference documentation')
-  .option('--sdk <name>', 'SDK to generate (or "all")', 'all')
-  .option('--version <version>', 'Version to generate (or "all", "latest")', 'all')
-  .option('--limit <n>', 'Limit number of versions to generate', parseInt)
+  .name("generate-sdk-reference")
+  .description("Generate SDK reference documentation")
+  .option("--sdk <name>", 'SDK to generate (or "all")', "all")
+  .option(
+    "--version <version>",
+    'Version to generate (or "all", "latest")',
+    "all"
+  )
+  .option("--limit <n>", "Limit number of versions to generate", parseInt)
+  .option("--force", "Force regenerate existing versions")
   .parse();
 
 const opts = program.opts<{
   sdk: string;
   version: string;
   limit?: number;
+  force?: boolean;
 }>();
 
 async function main(): Promise<void> {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdk-gen-'));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sdk-gen-"));
 
-  console.log('🚀 SDK Reference Generator');
-  console.log(`   SDK: ${opts.sdk}`);
-  console.log(`   Version: ${opts.version}`);
-  if (opts.limit) {
-    console.log(`   Limit: ${opts.limit} versions`);
-  }
-  console.log(`   Temp dir: ${tempDir}`);
-  console.log('');
+  log.header("SDK Reference Generator");
+  log.stats([
+    { label: "SDK", value: opts.sdk },
+    { label: "Version", value: opts.version },
+    ...(opts.limit ? [{ label: "Limit", value: `${opts.limit} versions` }] : []),
+    ...(opts.force ? [{ label: "Force", value: "true" }] : []),
+    { label: "Temp", value: tempDir },
+  ]);
+  log.blank();
 
   const ctx: GenerationContext = {
     tempDir,
     docsDir: DOCS_DIR,
     configsDir: CONFIGS_DIR,
     limit: opts.limit,
+    force: opts.force,
   };
 
   try {
-    const sdkKeys =
-      opts.sdk === 'all' ? await getAllSDKKeys() : [opts.sdk];
+    const sdkKeys = opts.sdk === "all" ? await getAllSDKKeys() : [opts.sdk];
 
     const results: Map<string, GenerationResult> = new Map();
 
     for (const sdkKey of sdkKeys) {
-      console.log(`📦 Generating ${sdkKey}...`);
+      log.section(`Generating ${sdkKey}`);
       const result = await generateSDK(sdkKey, opts.version, ctx);
       results.set(sdkKey, result);
     }
 
-    console.log('');
-    console.log('📝 Generating navigation JSON...');
+    log.blank();
+    log.section("Building navigation");
     const navigation = await buildNavigation(DOCS_DIR);
 
-    console.log('');
-    console.log('🔄 Merging navigation into docs.json...');
+    log.blank();
+    log.section("Merging into docs.json");
     await mergeNavigation(navigation, DOCS_DIR);
 
-    console.log('');
-    console.log('✅ SDK reference generation complete');
+    log.blank();
+    log.section("Verifying documentation");
+    const verification = await verifyGeneratedDocs(DOCS_DIR);
+
+    if (verification.warnings.length > 0) {
+      log.warn("Warnings detected:");
+      for (const warning of verification.warnings) {
+        log.data(`- ${warning}`, 1);
+      }
+    }
+
+    if (!verification.valid) {
+      log.blank();
+      log.error("Verification failed:");
+      for (const error of verification.errors) {
+        log.data(`- ${error}`, 1);
+      }
+      process.exit(1);
+    }
+
+    const docsJsonValid = await verifyDocsJson(DOCS_DIR);
+    if (!docsJsonValid) {
+      log.error("docs.json validation failed");
+      process.exit(1);
+    }
+
+    log.blank();
+    log.success("SDK reference generation complete");
 
     let totalGenerated = 0;
     let totalFailed = 0;
@@ -83,21 +118,21 @@ async function main(): Promise<void> {
       totalFailed += result.failed;
     }
 
-    if (totalGenerated > 0 || totalFailed > 0) {
-      console.log('');
-      console.log('📊 Final Summary:');
-      console.log(`   Total generated: ${totalGenerated}`);
-      if (totalFailed > 0) {
-        console.log(`   Total failed: ${totalFailed}`);
-      }
-    }
+    log.blank();
+    log.summary("Final Summary");
+    log.stats([
+      { label: "Generated", value: totalGenerated },
+      ...(totalFailed > 0 ? [{ label: "Failed", value: totalFailed }] : []),
+      { label: "Total MDX files", value: verification.stats.totalMdxFiles },
+      { label: "Total SDKs", value: verification.stats.totalSDKs },
+      { label: "Total versions", value: verification.stats.totalVersions },
+    ], 0);
   } finally {
     await fs.remove(tempDir);
   }
 }
 
 main().catch((error) => {
-  console.error('❌ Fatal error:', error.message);
+  log.error(`Fatal error: ${error.message}`);
   process.exit(1);
 });
-

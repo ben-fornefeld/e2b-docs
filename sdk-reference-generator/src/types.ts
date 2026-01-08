@@ -1,6 +1,6 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const GeneratorType = z.enum(['typedoc', 'pydoc', 'cli']);
+export const GeneratorType = z.enum(["typedoc", "pydoc", "cli"]);
 export type GeneratorType = z.infer<typeof GeneratorType>;
 
 export const SDKConfigSchema = z.object({
@@ -15,8 +15,9 @@ export const SDKConfigSchema = z.object({
   minVersion: z.string().optional(),
   sdkPath: z.string().optional(),
   sdkPaths: z.array(z.string()).optional(),
-  packages: z.array(z.string()).optional(),
+  fallbackPackages: z.array(z.string()).optional().describe('Used if auto-discovery fails'),
   submodules: z.record(z.string(), z.array(z.string())).optional(),
+  basePackage: z.string().optional().describe('Base Python package name for discovery'),
 });
 export type SDKConfig = z.infer<typeof SDKConfigSchema>;
 
@@ -30,6 +31,7 @@ export interface GenerationContext {
   docsDir: string;
   configsDir: string;
   limit?: number;
+  force?: boolean;
 }
 
 export interface GenerationResult {
@@ -53,4 +55,3 @@ export interface NavigationDropdown {
 export interface NavigationDropdownWithOrder extends NavigationDropdown {
   _order: number;
 }
-

@@ -1,31 +1,33 @@
-import type { SDKConfig, GenerationContext } from '../types.js';
-import { generateTypedoc } from './typedoc.js';
-import { generatePydoc } from './pydoc.js';
-import { generateCli } from './cli.js';
+import type { SDKConfig, GenerationContext } from "../types.js";
+import { generateTypedoc } from "./typedoc.js";
+import { generatePydoc } from "./pydoc.js";
+import { generateCli } from "./cli.js";
 
 export async function runGenerator(
   sdkDir: string,
   config: SDKConfig,
   ctx: GenerationContext
-): Promise<void> {
+): Promise<string> {
   switch (config.generator) {
-    case 'typedoc':
-      await generateTypedoc(sdkDir, ctx.configsDir);
-      break;
+    case "typedoc":
+      return await generateTypedoc(sdkDir, ctx.configsDir);
 
-    case 'pydoc':
-      await generatePydoc(sdkDir, config.packages || [], config.submodules);
-      break;
+    case "pydoc":
+      return await generatePydoc(
+        sdkDir,
+        config.fallbackPackages || [],
+        config.submodules,
+        config.basePackage
+      );
 
-    case 'cli':
-      await generateCli(sdkDir);
-      break;
+    case "cli":
+      return await generateCli(sdkDir);
 
     default:
       throw new Error(`Unknown generator: ${config.generator}`);
   }
 }
 
-export { generateTypedoc } from './typedoc.js';
-export { generatePydoc } from './pydoc.js';
-export { generateCli } from './cli.js';
+export { generateTypedoc } from "./typedoc.js";
+export { generatePydoc } from "./pydoc.js";
+export { generateCli } from "./cli.js";

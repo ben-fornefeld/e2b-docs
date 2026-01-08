@@ -1,66 +1,63 @@
 import { execa } from 'execa';
 import type { GeneratorType } from '../types.js';
 import { hashLockfile, isCached, markCached } from './cache.js';
+import { log } from './log.js';
 
 async function installDependencies(
   sdkDir: string,
   generator: GeneratorType
 ): Promise<void> {
-  console.log('  → Installing dependencies...');
+  log.info('Installing dependencies...', 1);
 
   switch (generator) {
-    case 'typedoc': {
-      try {
-        await execa(
-          'pnpm',
-          ['install', '--ignore-scripts', '--prefer-offline'],
-          {
-            cwd: sdkDir,
-            stdio: 'pipe',
-          }
-        );
-      } catch {
-        console.log('  ⚠️  pnpm failed, trying npm...');
-        await execa(
-          'npm',
-          ['install', '--legacy-peer-deps', '--prefer-offline'],
-          {
-            cwd: sdkDir,
-            stdio: 'pipe',
-          }
-        );
-      }
-      break;
-    }
-
+    case 'typedoc':
     case 'cli': {
+      const isTypedoc = generator === 'typedoc';
+      const baseArgs = isTypedoc
+        ? ['install', '--ignore-scripts', '--prefer-offline']
+        : ['install', '--prefer-offline'];
+
       try {
-        await execa('pnpm', ['install', '--prefer-offline'], {
+        await execa('pnpm', baseArgs, {
           cwd: sdkDir,
-          stdio: 'pipe',
+          stdio: 'inherit',
         });
       } catch {
-        await execa('npm', ['install', '--prefer-offline'], {
-          cwd: sdkDir,
-          stdio: 'pipe',
-        });
+        log.warn('Trying with relaxed engine constraints...', 1);
+        try {
+          await execa('pnpm', ['--engine-strict=false', ...baseArgs], {
+            cwd: sdkDir,
+            stdio: 'inherit',
+          });
+        } catch {
+          log.warn('pnpm failed, trying npm...', 1);
+          await execa(
+            'npm',
+            ['install', '--legacy-peer-deps', '--force', '--prefer-offline'],
+            {
+              cwd: sdkDir,
+              stdio: 'inherit',
+            }
+          );
+        }
       }
       break;
     }
 
     case 'pydoc': {
       try {
-        await execa('poetry', ['install', '--quiet'], {
+        await execa('poetry', ['install', '--no-interaction'], {
           cwd: sdkDir,
-          stdio: 'pipe',
+          stdio: 'inherit',
         });
       } catch {
+        log.warn('poetry failed, using global pydoc-markdown...', 1);
         await execa(
           'pip',
           ['install', '--break-system-packages', 'pydoc-markdown'],
           {
             cwd: sdkDir,
-            stdio: 'pipe',
+            stdio: 'inherit',
           }
         );
       }
@@ -78,7 +75,7 @@ export async function installWithCache(
     const hash = await hashLockfile(sdkDir, generator);
 
     if (hash && (await isCached(hash, generator, tempDir))) {
-      console.log('  → Poetry dependencies cached (lockfile unchanged)');
+      log.info('Poetry dependencies cached (lockfile unchanged)', 1);
       return;
     }
 

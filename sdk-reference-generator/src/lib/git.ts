@@ -1,5 +1,6 @@
 import { simpleGit, SimpleGit } from 'simple-git';
 import { sortVersionsDescending } from './utils.js';
+import { log } from './log.js';
 
 const git: SimpleGit = simpleGit();
 
@@ -31,7 +32,7 @@ export async function cloneAtTag(
   try {
     await git.clone(repo, targetDir, ['--depth', '1', '--branch', tag]);
   } catch {
-    console.log(`  ⚠️  Tag ${tag} not found, trying default branch...`);
+    log.warn(`Tag ${tag} not found, trying default branch...`, 1);
     await git.clone(repo, targetDir, ['--depth', '1']);
   }
 }
