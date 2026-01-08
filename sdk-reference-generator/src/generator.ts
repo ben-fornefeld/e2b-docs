@@ -28,13 +28,15 @@ async function generateVersion(
   sdkKey: string,
   config: SDKConfig,
   version: string,
-  ctx: GenerationContext
+  context: GenerationContext
 ): Promise<void> {
-  const repoDir = path.join(ctx.tempDir, `${sdkKey}-${version}`);
+  const repoDir = path.join(context.tempDir, `${sdkKey}-${version}`);
 
   try {
-    const versionWithoutV = version.replace(/^v/, "");
-    const tagName = config.tagFormat.replace("{version}", versionWithoutV);
+    const tagName = config.tagFormat.replace(
+      "{version}",
+      version.replace(/^v/, "")
+    );
 
     await cloneAtTag(config.repo, tagName, repoDir);
 
@@ -45,9 +47,8 @@ async function generateVersion(
       );
     }
 
-    await installWithCache(sdkDir, config.generator, ctx.tempDir);
-
-    const generatedDocsDir = await runGenerator(sdkDir, config, ctx);
+    await installWithCache(sdkDir, config.generator, context.tempDir);
+    const generatedDocsDir = await runGenerator(sdkDir, config, context);
 
     const sdkRefDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
     if (generatedDocsDir !== sdkRefDir) {
@@ -57,7 +58,7 @@ async function generateVersion(
 
     await flattenMarkdown(sdkRefDir);
 
-    const destDir = buildSDKPath(ctx.docsDir, sdkKey, version);
+    const destDir = buildSDKPath(context.docsDir, sdkKey, version);
     const success = await copyToDocs(
       sdkRefDir,
       destDir,
@@ -73,119 +74,123 @@ async function generateVersion(
   }
 }
 
-export async function generateSDK(
+async function discoverAllVersions(
   sdkKey: string,
+  config: SDKConfig,
+  context: GenerationContext
+): Promise<string[]> {
+  log.info("Discovering all versions...", 1);
+
+  let remote = await fetchRemoteTags(config.repo, config.tagPattern);
+
+  if (remote.length === 0) {
+    if (config.required) {
+      log.error("No tags found", 1);
+      process.exit(1);
+    }
+    log.warn("No tags found, skipping...", 1);
+    return [];
+  }
+
+  if (config.minVersion) {
+    remote = filterByMinVersion(remote, config.minVersion);
+    log.info(`Filtered to versions >= ${config.minVersion}`, 1);
+  }
+
+  if (context.limit && context.limit > 0) {
+    remote = remote.slice(0, context.limit);
+    log.info(`Limited to last ${context.limit} versions`, 1);
+  }
+
+  const local = await fetchLocalVersions(sdkKey, context.docsDir);
+
+  log.blank();
+  log.step("Version Discovery", 1);
+  log.stats(
+    [
+      { label: "Remote", value: remote.length },
+      { label: "Local", value: local.length },
+    ],
+    1
+  );
+
+  const missing = context.force ? remote : diffVersions(remote, local);
+
+  log.stats(
+    [
+      {
+        label: context.force ? "To Generate (forced)" : "Missing",
+        value: missing.length,
+      },
+    ],
+    1
+  );
+  log.blank();
+
+  if (missing.length === 0) {
+    log.success("Nothing to generate", 1);
+    return [];
+  }
+
+  if (context.force && local.length > 0) {
+    log.warn("FORCE MODE: Will regenerate existing versions", 1);
+  }
+
+  return missing;
+}
+
+async function resolveSpecificVersion(
+  sdkKey: string,
+  config: SDKConfig,
   versionArg: string,
-  ctx: GenerationContext
+  context: GenerationContext
+): Promise<string[]> {
+  const resolved = await resolveLatestVersion(
+    config.repo,
+    config.tagPattern,
+    versionArg
+  );
+
+  if (!resolved) {
+    if (config.required) {
+      log.error("No tags found", 1);
+      process.exit(1);
+    }
+    log.warn("No tags found, skipping...", 1);
+    return [];
+  }
+
+  if (
+    !context.force &&
+    (await versionExists(sdkKey, resolved, context.docsDir))
+  ) {
+    log.success(`${resolved} already exists`, 1);
+    return [];
+  }
+
+  if (context.force) {
+    log.warn("FORCE MODE: Will regenerate existing version", 1);
+  }
+
+  return [resolved];
+}
+
+async function processVersionBatch(
+  sdkKey: string,
+  config: SDKConfig,
+  versions: string[],
+  context: GenerationContext
 ): Promise<GenerationResult> {
-  const config = await getSDKConfig(sdkKey);
-
-  if (!config) {
-    log.error(`SDK '${sdkKey}' not found in config`, 1);
-    return { generated: 0, failed: 1, failedVersions: [sdkKey] };
-  }
-
-  log.info(`${config.displayName} version: ${versionArg}`, 1);
-
-  let versionsToProcess: string[] = [];
-
-  if (versionArg === "all") {
-    log.info("Discovering all versions...", 1);
-
-    let remote = await fetchRemoteTags(config.repo, config.tagPattern);
-
-    if (remote.length === 0) {
-      if (config.required) {
-        log.error("No tags found", 1);
-        return { generated: 0, failed: 1, failedVersions: ["no-tags"] };
-      }
-      log.warn("No tags found, skipping...", 1);
-      return { generated: 0, failed: 0, failedVersions: [] };
-    }
-
-    if (config.minVersion) {
-      remote = filterByMinVersion(remote, config.minVersion);
-      log.info(`Filtered to versions >= ${config.minVersion}`, 1);
-    }
-
-    if (ctx.limit && ctx.limit > 0) {
-      remote = remote.slice(0, ctx.limit);
-      log.info(`Limited to last ${ctx.limit} versions`, 1);
-    }
-
-    const local = await fetchLocalVersions(sdkKey, ctx.docsDir);
-
-    log.blank();
-    log.step("Version Discovery", 1);
-    log.stats(
-      [
-        { label: "Remote", value: remote.length },
-        { label: "Local", value: local.length },
-      ],
-      1
-    );
-
-    const missing = ctx.force ? remote : diffVersions(remote, local);
-
-    log.stats(
-      [
-        {
-          label: ctx.force ? "To Generate (forced)" : "Missing",
-          value: missing.length,
-        },
-      ],
-      1
-    );
-    log.blank();
-
-    if (missing.length === 0) {
-      log.success("Nothing to generate", 1);
-      return { generated: 0, failed: 0, failedVersions: [] };
-    }
-
-    if (ctx.force && local.length > 0) {
-      log.warn("FORCE MODE: Will regenerate existing versions", 1);
-    }
-
-    versionsToProcess = missing;
-  } else {
-    const resolved = await resolveLatestVersion(
-      config.repo,
-      config.tagPattern,
-      versionArg
-    );
-
-    if (!resolved) {
-      if (config.required) {
-        log.error("No tags found", 1);
-        return { generated: 0, failed: 1, failedVersions: ["no-tags"] };
-      }
-      log.warn("No tags found, skipping...", 1);
-      return { generated: 0, failed: 0, failedVersions: [] };
-    }
-
-    if (!ctx.force && (await versionExists(sdkKey, resolved, ctx.docsDir))) {
-      log.success(`${resolved} already exists`, 1);
-      return { generated: 0, failed: 0, failedVersions: [] };
-    }
-
-    if (ctx.force) {
-      log.warn("FORCE MODE: Will regenerate existing version", 1);
-    }
-
-    versionsToProcess = [resolved];
-  }
-
   let generated = 0;
   let failed = 0;
   const failedVersions: string[] = [];
 
-  for (const version of versionsToProcess) {
+  for (const version of versions) {
     log.blank();
     log.step(`Generating ${version}`, 1);
 
     try {
-      await generateVersion(sdkKey, config, version, ctx);
+      await generateVersion(sdkKey, config, version, context);
       log.success(`Complete: ${version}`, 1);
       generated++;
     } catch (error) {
@@ -195,6 +200,15 @@ export async function generateSDK(
       failedVersions.push(version);
     }
   }
+
+  return { generated, failed, failedVersions };
+}
+
+function handleGenerationFailures(
+  config: SDKConfig,
+  result: GenerationResult
+): void {
+  const { generated, failed, failedVersions } = result;
 
   log.blank();
   log.step("Summary", 1);
@@ -226,6 +240,39 @@ export async function generateSDK(
       process.exit(1);
     }
   }
+}
 
-  return { generated, failed, failedVersions };
+export async function generateSDK(
+  sdkKey: string,
+  versionArg: string,
+  context: GenerationContext
+): Promise<GenerationResult> {
+  const config = await getSDKConfig(sdkKey);
+
+  if (!config) {
+    log.error(`SDK '${sdkKey}' not found in config`, 1);
+    return { generated: 0, failed: 1, failedVersions: [sdkKey] };
+  }
+
+  log.info(`${config.displayName} version: ${versionArg}`, 1);
+
+  const versionsToProcess =
+    versionArg === "all"
+      ? await discoverAllVersions(sdkKey, config, context)
+      : await resolveSpecificVersion(sdkKey, config, versionArg, context);
+
+  if (versionsToProcess.length === 0) {
+    return { generated: 0, failed: 0, failedVersions: [] };
+  }
+
+  const result = await processVersionBatch(
+    sdkKey,
+    config,
+    versionsToProcess,
+    context
+  );
+
+  handleGenerationFailures(config, result);
+
+  return result;
 }

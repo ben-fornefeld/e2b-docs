@@ -2,14 +2,22 @@ import semver from "semver";
 import path from "path";
 import { CONSTANTS } from "./constants.js";
 
-export function stripV(version: string): string {
+export function normalizeVersion(version: string): string {
+  return version.startsWith("v") ? version : `v${version}`;
+}
+
+export function stripVersionPrefix(version: string): string {
   return version.replace(/^v/, "");
+}
+
+export function isValidVersion(version: string): boolean {
+  return /^v?\d+\.\d+\.\d+/.test(version);
 }
 
 export function sortVersionsDescending(versions: string[]): string[] {
   return versions.sort((a, b) => {
     try {
-      return semver.rcompare(stripV(a), stripV(b));
+      return semver.rcompare(stripVersionPrefix(a), stripVersionPrefix(b));
     } catch {
       return b.localeCompare(a);
     }

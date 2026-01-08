@@ -1,18 +1,16 @@
 import fs from 'fs-extra';
 import path from 'path';
 import semver from 'semver';
-import { stripV, sortVersionsDescending } from './utils.js';
+import { stripVersionPrefix, sortVersionsDescending, isValidVersion } from './utils.js';
 import { CONSTANTS } from './constants.js';
 
-export function isValidVersion(version: string): boolean {
-  return /^v?\d+\.\d+\.\d+/.test(version);
-}
+export { isValidVersion };
 
 export function versionGte(v1: string, v2: string): boolean {
   try {
-    return semver.gte(stripV(v1), stripV(v2));
+    return semver.gte(stripVersionPrefix(v1), stripVersionPrefix(v2));
   } catch {
-    return stripV(v1) >= stripV(v2);
+    return stripVersionPrefix(v1) >= stripVersionPrefix(v2);
   }
 }
 

@@ -6,11 +6,11 @@ import { generateCli } from "./cli.js";
 export async function runGenerator(
   sdkDir: string,
   config: SDKConfig,
-  ctx: GenerationContext
+  context: GenerationContext
 ): Promise<string> {
   switch (config.generator) {
     case "typedoc":
-      return await generateTypedoc(sdkDir, ctx.configsDir);
+      return await generateTypedoc(sdkDir, context.configsDir);
 
     case "pydoc":
       return await generatePydoc(

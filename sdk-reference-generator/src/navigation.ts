@@ -1,7 +1,11 @@
 import fs from "fs-extra";
 import path from "path";
 import { getConfig } from "./lib/config.js";
-import { sortVersionsDescending } from "./lib/utils.js";
+import {
+  sortVersionsDescending,
+  isValidVersion,
+  normalizeVersion,
+} from "./lib/utils.js";
 import { CONSTANTS } from "./lib/constants.js";
 import { log } from "./lib/log.js";
 import type {
@@ -14,10 +18,7 @@ async function getVersions(sdkDir: string): Promise<string[]> {
     const entries = await fs.readdir(sdkDir, { withFileTypes: true });
 
     const versions = entries
-      .filter((e) => {
-        if (!e.isDirectory()) return false;
-        return /^v?\d+\.\d+\.\d+/.test(e.name);
-      })
+      .filter((e) => e.isDirectory() && isValidVersion(e.name))
       .map((e) => e.name);
 
     return sortVersionsDescending(versions);
@@ -74,12 +75,9 @@ export async function buildNavigation(
         versions.map(async (version, index) => {
           const versionDir = path.join(sdkDir, version);
           const modules = await getModules(versionDir);
-          const displayVersion = version.startsWith("v")
-            ? version
-            : `v${version}`;
 
           return {
-            version: displayVersion,
+            version: normalizeVersion(version),
             default: index === 0,
             pages: modules.map(
               (module) =>

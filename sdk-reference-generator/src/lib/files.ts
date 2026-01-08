@@ -14,6 +14,29 @@ export function toTitleCase(str: string): string {
     .join(" ");
 }
 
+/**
+ * Extracts a clean title from a flattened filename.
+ * Removes directory prefixes added during flattening.
+ *
+ * @example
+ * extractTitle('modules-Sandbox') // 'Sandbox'
+ * extractTitle('classes-MyClass') // 'MyClass'
+ * extractTitle('sandbox_sync') // 'Sandbox Sync'
+ * extractTitle('modules-sandbox_sync') // 'Sandbox Sync'
+ */
+export function extractTitle(filename: string): string {
+  if (!filename) return "";
+
+  const prefixMatch = filename.match(/^([a-z]+-)+(.+)$/);
+
+  if (prefixMatch) {
+    const withoutPrefix = prefixMatch[2];
+    return toTitleCase(withoutPrefix);
+  }
+
+  return toTitleCase(filename);
+}
+
 export async function addFrontmatter(
   file: string,
   title: string
@@ -36,20 +59,36 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
     ignore: "*.md",
   });
 
+  const targetFiles = new Set<string>();
+  const collisions: string[] = [];
+
   for (const file of nestedFiles) {
     const filename = path.basename(file);
     const parentDirName = path.basename(path.dirname(file));
+    const dirPath = path.dirname(file).replace(/\//g, "-");
 
-    const targetName =
-      filename === "page.md" || filename === "index.md"
-        ? `${parentDirName}.md`
-        : filename;
+    let targetName: string;
 
-    await fs.move(
-      path.join(refDir, file),
-      path.join(refDir, targetName),
-      { overwrite: true }
-    );
+    if (filename === "page.md" || filename === "index.md") {
+      targetName = `${parentDirName}.md`;
+    } else {
+      const baseName = path.basename(filename, ".md");
+      targetName = `${dirPath}-${baseName}.md`;
+    }
+
+    if (targetFiles.has(targetName)) {
+      collisions.push(`${file} → ${targetName}`);
+    }
+    targetFiles.add(targetName);
+
+    await fs.move(path.join(refDir, file), path.join(refDir, targetName), {
+      overwrite: false,
+    });
+  }
+
+  if (collisions.length > 0) {
+    log.warn(`Detected ${collisions.length} filename collision(s):`, 1);
+    collisions.forEach((c) => log.data(c, 2));
   }
 
   const dirs = await glob("**/", { cwd: refDir });
@@ -67,7 +106,7 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
 
   for (const file of mdFiles) {
     const fullPath = path.join(refDir, file);
-    const title = toTitleCase(path.basename(file, CONSTANTS.MD_EXTENSION));
+    const title = extractTitle(path.basename(file, CONSTANTS.MD_EXTENSION));
     const content = await fs.readFile(fullPath, "utf-8");
 
     const mdxPath = fullPath.replace(
@@ -85,7 +124,7 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
     const content = await fs.readFile(fullPath, "utf-8");
 
     if (!content.startsWith("---")) {
-      const title = toTitleCase(path.basename(file, CONSTANTS.MDX_EXTENSION));
+      const title = extractTitle(path.basename(file, CONSTANTS.MDX_EXTENSION));
       await addFrontmatter(fullPath, title);
     }
   }
@@ -128,10 +167,7 @@ export async function copyToDocs(
   log.info(`Copying ${files.length} files to ${destDir}`, 1);
 
   for (const file of files) {
-    await fs.copy(
-      path.join(srcDir, file),
-      path.join(destDir, file)
-    );
+    await fs.copy(path.join(srcDir, file), path.join(destDir, file));
   }
 
   log.success(`${sdkName} ${version} complete`, 1);

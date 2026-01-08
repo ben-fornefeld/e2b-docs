@@ -65,14 +65,11 @@ async function processMdx(file: string): Promise<void> {
   let content = await fs.readFile(file, "utf-8");
 
   content = content.replace(/<a[^>]*>.*?<\/a>/g, "");
-
   content = content
     .split("\n")
     .filter((line) => !line.startsWith("# "))
     .join("\n");
-
   content = content.replace(/^(## .+) Objects$/gm, "$1");
-
   content = content.replace(/^####/gm, "###");
 
   await fs.writeFile(file, content);

@@ -5,19 +5,10 @@ on:
   workflow_dispatch:
     inputs:
       sdk:
-        description: "SDK to generate (js-sdk, python-sdk, cli, code-interpreter-js-sdk, code-interpreter-python-sdk, desktop-js-sdk, desktop-python-sdk, all)"
+        description: "SDK to generate (see sdks.config.ts for available SDKs, or use 'all')"
         required: true
         default: "all"
-        type: choice
-        options:
-          - all
-          - js-sdk
-          - python-sdk
-          - cli
-          - code-interpreter-js-sdk
-          - code-interpreter-python-sdk
-          - desktop-js-sdk
-          - desktop-python-sdk
+        type: string
       version:
         description: "Version to generate (all, latest, or specific like v2.9.0)"
         required: true
@@ -120,6 +111,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Generated Files" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          find docs/sdk-reference -type f -name "*.mdx" | wc -l | xargs echo "Total MDX files:"
+          find docs/sdk-reference -type f -name "*.mdx" | wc -l | xargs echo "Total MDX files:" >> $GITHUB_STEP_SUMMARY
           find docs/sdk-reference -type f -name "*.mdx" >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY

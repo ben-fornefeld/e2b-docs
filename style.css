@@ -63,8 +63,8 @@ code {
 }
 
 /* Version switcher styles - subtle highlight */
-#sidebar ul:last-child li button,
-#sidebar ul:last-child li select {
+#sidebar ul:last-child:not(.sidebar-group) li button,
+#sidebar ul:last-child:not(.sidebar-group) li select {
     background-color: rgba(255, 136, 0, 0.1) !important;   /* 10% orange tint */
     color: #ff8800 !important;                              /* Orange text */
     border: 1px solid rgba(255, 136, 0, 0.3) !important;   /* 30% orange border */
@@ -74,22 +74,22 @@ code {
     transition: all 0.2s ease !important;
 }
 
-#sidebar ul:last-child li button:hover,
-#sidebar ul:last-child li select:hover {
+#sidebar ul:last-child:not(.sidebar-group) li button:hover,
+#sidebar ul:last-child:not(.sidebar-group) li select:hover {
     background-color: rgba(255, 136, 0, 0.15) !important;  /* Slightly darker on hover */
     border-color: rgba(255, 136, 0, 0.5) !important;
 }
 
 /* Dark mode version switcher */
-.dark #sidebar ul:last-child li button,
-.dark #sidebar ul:last-child li select {
+.dark #sidebar ul:last-child:not(.sidebar-group) li button,
+.dark #sidebar ul:last-child:not(.sidebar-group) li select {
     background-color: rgba(255, 136, 0, 0.15) !important;  /* Slightly more visible in dark */
     color: #ffaa44 !important;                              /* Lighter orange for contrast */
     border-color: rgba(255, 136, 0, 0.4) !important;
 }
 
-.dark #sidebar ul:last-child li button:hover,
-.dark #sidebar ul:last-child li select:hover {
+.dark #sidebar ul:last-child:not(.sidebar-group) li button:hover,
+.dark #sidebar ul:last-child:not(.sidebar-group) li select:hover {
     background-color: rgba(255, 136, 0, 0.25) !important;
     border-color: rgba(255, 136, 0, 0.6) !important;
 }

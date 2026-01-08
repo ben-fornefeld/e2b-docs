@@ -1,12 +1,12 @@
-import { createHash } from 'crypto';
-import fs from 'fs-extra';
-import path from 'path';
-import type { GeneratorType } from '../types.js';
+import { createHash } from "crypto";
+import fs from "fs-extra";
+import path from "path";
+import type { GeneratorType } from "../types.js";
 
 const LOCKFILES: Record<GeneratorType, string[]> = {
-  typedoc: ['pnpm-lock.yaml', 'package-lock.json'],
-  cli: ['pnpm-lock.yaml', 'package-lock.json'],
-  pydoc: ['poetry.lock'],
+  typedoc: ["pnpm-lock.yaml", "package-lock.json"],
+  cli: ["pnpm-lock.yaml", "package-lock.json"],
+  pydoc: ["poetry.lock"],
 };
 
 async function findLockfileUp(
@@ -15,12 +15,17 @@ async function findLockfileUp(
 ): Promise<string | null> {
   let current = dir;
 
-  while (current !== '/' && current !== '.') {
+  while (true) {
     const lockPath = path.join(current, filename);
     if (await fs.pathExists(lockPath)) {
       return lockPath;
     }
-    current = path.dirname(current);
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
   }
 
   return null;
@@ -35,8 +40,8 @@ export async function hashLockfile(
   for (const filename of lockfiles) {
     const lockPath = await findLockfileUp(sdkDir, filename);
     if (lockPath) {
-      const content = await fs.readFile(lockPath, 'utf-8');
-      return createHash('md5').update(content).digest('hex');
+      const content = await fs.readFile(lockPath, "utf-8");
+      return createHash("md5").update(content).digest("hex");
     }
   }
 
@@ -48,7 +53,12 @@ export async function isCached(
   generator: GeneratorType,
   tempDir: string
 ): Promise<boolean> {
-  const marker = path.join(tempDir, '.deps-cache', `${generator}-${hash}`, '.installed');
+  const marker = path.join(
+    tempDir,
+    ".deps-cache",
+    `${generator}-${hash}`,
+    ".installed"
+  );
   return fs.pathExists(marker);
 }
 
@@ -57,8 +67,12 @@ export async function markCached(
   generator: GeneratorType,
   tempDir: string
 ): Promise<void> {
-  const marker = path.join(tempDir, '.deps-cache', `${generator}-${hash}`, '.installed');
+  const marker = path.join(
+    tempDir,
+    ".deps-cache",
+    `${generator}-${hash}`,
+    ".installed"
+  );
   await fs.ensureDir(path.dirname(marker));
-  await fs.writeFile(marker, '');
+  await fs.writeFile(marker, "");
 }
-

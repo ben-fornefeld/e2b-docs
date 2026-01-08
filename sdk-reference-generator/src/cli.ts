@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   ]);
   log.blank();
 
-  const ctx: GenerationContext = {
+  const context: GenerationContext = {
     tempDir,
     docsDir: DOCS_DIR,
     configsDir: CONFIGS_DIR,
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
 
     for (const sdkKey of sdkKeys) {
       log.section(`Generating ${sdkKey}`);
-      const result = await generateSDK(sdkKey, opts.version, ctx);
+      const result = await generateSDK(sdkKey, opts.version, context);
       results.set(sdkKey, result);
     }
 
