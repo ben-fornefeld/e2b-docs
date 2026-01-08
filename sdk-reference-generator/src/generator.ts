@@ -247,7 +247,7 @@ export async function generateSDK(
   versionArg: string,
   context: GenerationContext
 ): Promise<GenerationResult> {
-  const config = await getSDKConfig(sdkKey);
+  const config = getSDKConfig(sdkKey);
 
   if (!config) {
     log.error(`SDK '${sdkKey}' not found in config`, 1);

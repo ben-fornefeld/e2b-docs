@@ -42,7 +42,7 @@ async function getModules(versionDir: string): Promise<string[]> {
 export async function buildNavigation(
   docsDir: string
 ): Promise<NavigationDropdown[]> {
-  const config = await getConfig();
+  const config = getConfig();
   const sdkRefDir = path.join(docsDir, CONSTANTS.DOCS_SDK_REF_PATH);
 
   if (!(await fs.pathExists(sdkRefDir))) {

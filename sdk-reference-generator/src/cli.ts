@@ -63,7 +63,7 @@ async function main(): Promise<void> {
   };
 
   try {
-    const sdkKeys = opts.sdk === "all" ? await getAllSDKKeys() : [opts.sdk];
+    const sdkKeys = opts.sdk === "all" ? getAllSDKKeys() : [opts.sdk];
 
     const results: Map<string, GenerationResult> = new Map();
 
