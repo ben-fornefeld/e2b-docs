@@ -93,7 +93,7 @@ async function flattenNestedFiles(refDir: string): Promise<void> {
     log.warn(`Detected ${collisions.length} filename collision(s):`, 1);
     collisions.forEach((c) => log.data(c, 2));
   }
-}
+  }
 
 async function removeEmptyDirectories(refDir: string): Promise<void> {
   const dirs = await glob("**/", { cwd: refDir });
@@ -106,7 +106,7 @@ async function removeEmptyDirectories(refDir: string): Promise<void> {
       }
     } catch {}
   }
-}
+  }
 
 async function convertMdToMdx(refDir: string): Promise<void> {
   const mdFiles = await glob("*.md", { cwd: refDir });
@@ -123,7 +123,7 @@ async function convertMdToMdx(refDir: string): Promise<void> {
     await fs.writeFile(mdxPath, createFrontmatter(title) + content);
     await fs.remove(fullPath);
   }
-}
+  }
 
 async function ensureFrontmatter(refDir: string): Promise<void> {
   const mdxFiles = await glob(`*${CONSTANTS.MDX_EXTENSION}`, { cwd: refDir });
