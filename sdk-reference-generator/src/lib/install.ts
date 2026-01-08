@@ -12,33 +12,25 @@ export async function installDependencies(
     case "typedoc":
     case "cli": {
       const isTypedoc = generator === "typedoc";
-      const baseArgs = isTypedoc
+      const pnpmArgs = isTypedoc
         ? ["install", "--ignore-scripts", "--prefer-offline"]
         : ["install", "--prefer-offline"];
 
       try {
-        await execa("pnpm", baseArgs, {
+        await execa("pnpm", pnpmArgs, {
           cwd: sdkDir,
           stdio: "inherit",
         });
       } catch {
-        log.warn("Trying with relaxed engine constraints...", 1);
-        try {
-          await execa("pnpm", ["--engine-strict=false", ...baseArgs], {
+        log.warn("pnpm failed, falling back to npm...", 1);
+        await execa(
+          "npm",
+          ["install", "--legacy-peer-deps", "--force", "--prefer-offline"],
+          {
             cwd: sdkDir,
             stdio: "inherit",
-          });
-        } catch {
-          log.warn("pnpm failed, trying npm...", 1);
-          await execa(
-            "npm",
-            ["install", "--legacy-peer-deps", "--force", "--prefer-offline"],
-            {
-              cwd: sdkDir,
-              stdio: "inherit",
-            }
-          );
-        }
+          }
+        );
       }
       break;
     }

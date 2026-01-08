@@ -5,7 +5,7 @@ import type {
   GenerationContext,
   GenerationResult,
 } from "./types.js";
-import { getSDKConfig } from "./lib/config.js";
+import sdks from "../sdks.config.js";
 import { log } from "./lib/log.js";
 import { fetchRemoteTags, resolveLatestVersion } from "./lib/git.js";
 import {
@@ -16,7 +16,9 @@ import {
 } from "./lib/versions.js";
 import { flattenMarkdown, copyToDocs, locateSDKDir } from "./lib/files.js";
 import { installDependencies } from "./lib/install.js";
-import { runGenerator } from "./generators/index.js";
+import { generateTypedoc } from "./generators/typedoc.js";
+import { generatePydoc } from "./generators/pydoc.js";
+import { generateCli } from "./generators/cli.js";
 import { buildSDKPath } from "./lib/utils.js";
 import { CONSTANTS } from "./lib/constants.js";
 import { CheckoutManager } from "./lib/checkout.js";
@@ -59,7 +61,19 @@ async function generateVersion(
   await fs.remove(sdkRefDir);
 
   await installDependencies(sdkDir, config.generator);
-  const generatedDocsDir = await runGenerator(sdkDir, config, context);
+  
+  let generatedDocsDir: string;
+  switch (config.generator) {
+    case "typedoc":
+      generatedDocsDir = await generateTypedoc(sdkDir, context.configsDir);
+      break;
+    case "pydoc":
+      generatedDocsDir = await generatePydoc(sdkDir, config.allowedPackages);
+      break;
+    case "cli":
+      generatedDocsDir = await generateCli(sdkDir);
+      break;
+  }
 
   if (generatedDocsDir !== sdkRefDir) {
     log.info(`Normalizing ${path.basename(generatedDocsDir)} to sdk_ref`, 1);
@@ -250,18 +264,17 @@ function handleGenerationFailures(
     1
   );
 
-  if (failed > 0) {
-    if (config.required) {
-      log.blank();
-      log.error("WORKFLOW ABORTED: Required SDK has failures", 1);
-      log.error(`Failed: ${failedVersions.join(" ")}`, 1);
-      process.exit(1);
-    } else if (generated === 0) {
-      log.blank();
-      log.error("WORKFLOW ABORTED: All versions failed", 1);
-      log.error(`Failed: ${failedVersions.join(" ")}`, 1);
-      process.exit(1);
-    }
+  if (failed === 0) return;
+
+  const shouldAbort = config.required || generated === 0;
+  if (shouldAbort) {
+    log.blank();
+    const reason = config.required
+      ? "Required SDK has failures"
+      : "All versions failed";
+    log.error(`WORKFLOW ABORTED: ${reason}`, 1);
+    log.error(`Failed: ${failedVersions.join(" ")}`, 1);
+    process.exit(1);
   }
 }
 
@@ -270,7 +283,7 @@ export async function generateSDK(
   versionArg: string,
   context: GenerationContext
 ): Promise<GenerationResult> {
-  const config = getSDKConfig(sdkKey);
+  const config = sdks[sdkKey as keyof typeof sdks];
 
   if (!config) {
     log.error(`SDK '${sdkKey}' not found in config`, 1);

@@ -53,7 +53,7 @@ function removeLinesWithConditions(text) {
       continue
     }
 
-    filteredLines.push(convertH5toH3(lines[i]))
+    filteredLines.push(lines[i])
   }
 
   return filteredLines.join('\n')

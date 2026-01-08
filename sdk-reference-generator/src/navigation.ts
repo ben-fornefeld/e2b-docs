@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import { getConfig } from "./lib/config.js";
+import sdks from "../sdks.config.js";
 import {
   sortVersionsDescending,
   isValidVersion,
@@ -42,7 +42,6 @@ async function getModules(versionDir: string): Promise<string[]> {
 export async function buildNavigation(
   docsDir: string
 ): Promise<NavigationDropdown[]> {
-  const config = getConfig();
   const sdkRefDir = path.join(docsDir, CONSTANTS.DOCS_SDK_REF_PATH);
 
   if (!(await fs.pathExists(sdkRefDir))) {
@@ -52,7 +51,7 @@ export async function buildNavigation(
 
   const navigation: NavigationDropdownWithOrder[] = [];
 
-  for (const [sdkKey, sdkConfig] of Object.entries(config.sdks)) {
+  for (const [sdkKey, sdkConfig] of Object.entries(sdks)) {
     const sdkDir = path.join(sdkRefDir, sdkKey);
 
     if (!(await fs.pathExists(sdkDir))) {

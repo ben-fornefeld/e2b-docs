@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
-import { verifyGeneratedDocs, verifyDocsJson } from '../lib/verify.js';
+import { verifyGeneratedDocs } from '../lib/verify.js';
 import { CONSTANTS } from '../lib/constants.js';
 
 describe('verifyGeneratedDocs', () => {
@@ -24,9 +24,24 @@ describe('verifyGeneratedDocs', () => {
       '---\nsidebarTitle: "Test"\n---\n\nContent'
     );
 
+    // create valid docs.json
+    const docsJson = {
+      navigation: {
+        anchors: [
+          {
+            anchor: CONSTANTS.SDK_REFERENCE_ANCHOR,
+            icon: 'brackets-curly',
+            dropdowns: [],
+          },
+        ],
+      },
+    };
+    await fs.writeJSON(path.join(tempDir, 'docs.json'), docsJson);
+
     const result = await verifyGeneratedDocs(tempDir);
 
     expect(result.valid).toBe(true);
+    expect(result.docsJsonValid).toBe(true);
     expect(result.errors).toHaveLength(0);
     expect(result.stats.totalMdxFiles).toBe(1);
     expect(result.stats.totalSDKs).toBe(1);
@@ -68,7 +83,7 @@ describe('verifyGeneratedDocs', () => {
   });
 });
 
-describe('verifyDocsJson', () => {
+describe('verifyDocsJson via verifyGeneratedDocs', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -80,6 +95,13 @@ describe('verifyDocsJson', () => {
   });
 
   it('validates correct docs.json structure', async () => {
+    const sdkPath = path.join(tempDir, CONSTANTS.DOCS_SDK_REF_PATH, 'test-sdk', 'v1.0.0');
+    await fs.ensureDir(sdkPath);
+    await fs.writeFile(
+      path.join(sdkPath, 'test.mdx'),
+      '---\nsidebarTitle: "Test"\n---\n\nContent'
+    );
+
     const docsJson = {
       navigation: {
         anchors: [
@@ -94,16 +116,32 @@ describe('verifyDocsJson', () => {
 
     await fs.writeJSON(path.join(tempDir, 'docs.json'), docsJson);
 
-    const result = await verifyDocsJson(tempDir);
-    expect(result).toBe(true);
+    const result = await verifyGeneratedDocs(tempDir);
+    expect(result.docsJsonValid).toBe(true);
+    expect(result.valid).toBe(true);
   });
 
   it('fails when docs.json missing', async () => {
-    const result = await verifyDocsJson(tempDir);
-    expect(result).toBe(false);
+    const sdkPath = path.join(tempDir, CONSTANTS.DOCS_SDK_REF_PATH, 'test-sdk', 'v1.0.0');
+    await fs.ensureDir(sdkPath);
+    await fs.writeFile(
+      path.join(sdkPath, 'test.mdx'),
+      '---\nsidebarTitle: "Test"\n---\n\nContent'
+    );
+
+    const result = await verifyGeneratedDocs(tempDir);
+    expect(result.docsJsonValid).toBe(false);
+    expect(result.valid).toBe(false);
   });
 
   it('fails when SDK Reference anchor missing', async () => {
+    const sdkPath = path.join(tempDir, CONSTANTS.DOCS_SDK_REF_PATH, 'test-sdk', 'v1.0.0');
+    await fs.ensureDir(sdkPath);
+    await fs.writeFile(
+      path.join(sdkPath, 'test.mdx'),
+      '---\nsidebarTitle: "Test"\n---\n\nContent'
+    );
+
     const docsJson = {
       navigation: {
         anchors: [{ anchor: 'Other', dropdowns: [] }],
@@ -112,8 +150,9 @@ describe('verifyDocsJson', () => {
 
     await fs.writeJSON(path.join(tempDir, 'docs.json'), docsJson);
 
-    const result = await verifyDocsJson(tempDir);
-    expect(result).toBe(false);
+    const result = await verifyGeneratedDocs(tempDir);
+    expect(result.docsJsonValid).toBe(false);
+    expect(result.valid).toBe(false);
   });
 });
 

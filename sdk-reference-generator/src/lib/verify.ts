@@ -13,6 +13,7 @@ export interface VerificationResult {
     totalSDKs: number;
     totalVersions: number;
   };
+  docsJsonValid: boolean;
 }
 
 export async function verifyGeneratedDocs(
@@ -26,7 +27,7 @@ export async function verifyGeneratedDocs(
 
   if (!(await fs.pathExists(sdkRefDir))) {
     errors.push('SDK reference directory does not exist');
-    return { valid: false, errors, warnings, stats };
+    return { valid: false, errors, warnings, stats, docsJsonValid: false };
   }
 
   const sdkDirs = await fs.readdir(sdkRefDir, { withFileTypes: true });
@@ -78,15 +79,19 @@ export async function verifyGeneratedDocs(
     }
   }
 
+  // verify docs.json
+  const docsJsonValid = await verifyDocsJson(docsDir);
+
   return {
-    valid: errors.length === 0,
+    valid: errors.length === 0 && docsJsonValid,
     errors,
     warnings,
     stats,
+    docsJsonValid,
   };
 }
 
-export async function verifyDocsJson(docsDir: string): Promise<boolean> {
+async function verifyDocsJson(docsDir: string): Promise<boolean> {
   const docsJsonPath = path.join(docsDir, 'docs.json');
 
   if (!(await fs.pathExists(docsJsonPath))) {

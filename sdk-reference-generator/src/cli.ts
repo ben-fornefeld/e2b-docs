@@ -5,10 +5,10 @@ import fs from "fs-extra";
 import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
-import { getAllSDKKeys } from "./lib/config.js";
+import sdks from "../sdks.config.js";
 import { generateSDK } from "./generator.js";
 import { buildNavigation, mergeNavigation } from "./navigation.js";
-import { verifyGeneratedDocs, verifyDocsJson } from "./lib/verify.js";
+import { verifyGeneratedDocs } from "./lib/verify.js";
 import { log } from "./lib/log.js";
 import type { GenerationContext, GenerationResult } from "./types.js";
 
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
   };
 
   try {
-    const sdkKeys = opts.sdk === "all" ? getAllSDKKeys() : [opts.sdk];
+    const sdkKeys = opts.sdk === "all" ? Object.keys(sdks) : [opts.sdk];
 
     const results: Map<string, GenerationResult> = new Map();
 
@@ -98,12 +98,9 @@ async function main(): Promise<void> {
       for (const error of verification.errors) {
         log.data(`- ${error}`, 1);
       }
-      process.exit(1);
-    }
-
-    const docsJsonValid = await verifyDocsJson(DOCS_DIR);
-    if (!docsJsonValid) {
-      log.error("docs.json validation failed");
+      if (!verification.docsJsonValid) {
+        log.error("docs.json validation failed");
+      }
       process.exit(1);
     }
 

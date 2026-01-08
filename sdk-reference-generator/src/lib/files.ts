@@ -50,10 +50,13 @@ export async function addFrontmatter(
   await fs.writeFile(file, createFrontmatter(title) + content);
 }
 
-export async function flattenMarkdown(refDir: string): Promise<void> {
+async function removeUnwantedFiles(refDir: string): Promise<void> {
   await fs.remove(path.join(refDir, "README.md"));
   await fs.remove(path.join(refDir, "index.md"));
+  await fs.remove(path.join(refDir, `index${CONSTANTS.MDX_EXTENSION}`));
+}
 
+async function flattenNestedFiles(refDir: string): Promise<void> {
   const nestedFiles = await glob("**/*.md", {
     cwd: refDir,
     ignore: "*.md",
@@ -90,7 +93,9 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
     log.warn(`Detected ${collisions.length} filename collision(s):`, 1);
     collisions.forEach((c) => log.data(c, 2));
   }
+}
 
+async function removeEmptyDirectories(refDir: string): Promise<void> {
   const dirs = await glob("**/", { cwd: refDir });
   for (const dir of dirs.reverse()) {
     const dirPath = path.join(refDir, dir);
@@ -101,7 +106,9 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
       }
     } catch {}
   }
+}
 
+async function convertMdToMdx(refDir: string): Promise<void> {
   const mdFiles = await glob("*.md", { cwd: refDir });
 
   for (const file of mdFiles) {
@@ -116,7 +123,9 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
     await fs.writeFile(mdxPath, createFrontmatter(title) + content);
     await fs.remove(fullPath);
   }
+}
 
+async function ensureFrontmatter(refDir: string): Promise<void> {
   const mdxFiles = await glob(`*${CONSTANTS.MDX_EXTENSION}`, { cwd: refDir });
 
   for (const file of mdxFiles) {
@@ -128,19 +137,21 @@ export async function flattenMarkdown(refDir: string): Promise<void> {
       await addFrontmatter(fullPath, title);
     }
   }
+}
 
-  await fs.remove(path.join(refDir, `index${CONSTANTS.MDX_EXTENSION}`));
+export async function flattenMarkdown(refDir: string): Promise<void> {
+  await removeUnwantedFiles(refDir);
+  await flattenNestedFiles(refDir);
+  await removeEmptyDirectories(refDir);
+  await convertMdToMdx(refDir);
+  await ensureFrontmatter(refDir);
 }
 
 async function getNonEmptyMdxFiles(dir: string): Promise<string[]> {
-  await fs.remove(path.join(dir, `*${CONSTANTS.MDX_EXTENSION}`));
-
   const allFiles = await glob(`*${CONSTANTS.MDX_EXTENSION}`, { cwd: dir });
   const nonEmptyFiles: string[] = [];
 
   for (const file of allFiles) {
-    if (file === `*${CONSTANTS.MDX_EXTENSION}`) continue;
-
     const stat = await fs.stat(path.join(dir, file));
     if (stat.size > 0) {
       nonEmptyFiles.push(file);

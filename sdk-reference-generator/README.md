@@ -41,15 +41,14 @@ src/
 ├── cli.ts              # Entry point with CLI argument parsing
 ├── generator.ts        # Core SDK generation orchestration
 ├── navigation.ts       # Mintlify navigation builder
-├── types.ts            # TypeScript interfaces and Zod schemas
+├── types.ts            # TypeScript interfaces
 ├── lib/
 │   ├── constants.ts    # Centralized magic strings
 │   ├── utils.ts        # Pure utility functions
-│   ├── config.ts       # SDK configuration loading
 │   ├── git.ts          # Git operations (clone, tags)
+│   ├── checkout.ts     # Manages repo checkouts and version switching
 │   ├── versions.ts     # Version comparison and filtering
-│   ├── files.ts        # Markdown processing
-│   ├── cache.ts        # Dependency caching
+│   ├── files.ts        # Markdown processing and flattening
 │   ├── install.ts      # Package manager abstraction
 │   └── verify.ts       # Post-generation validation
 └── generators/
@@ -94,11 +93,10 @@ SDKs are configured in `sdks.json`:
 
 For maximum compatibility across SDK versions:
 
-1. **Try strict install** - Uses exact engine requirements
-2. **Try relaxed install** - Ignores engine constraints (`--engine-strict=false`)
-3. **Try npm fallback** - Uses npm with `--force` and `--legacy-peer-deps`
+1. **Try pnpm install** - Primary package manager with caching
+2. **Try npm fallback** - Uses npm with `--force` and `--legacy-peer-deps`
 
-Each strategy visible in logs for debugging. If all strategies fail, workflow aborts.
+Each strategy visible in logs for debugging. If both strategies fail, workflow aborts.
 
 ### What Gets Logged
 
@@ -149,7 +147,7 @@ Safety features:
 
 ## Performance
 
-- **Dependency Caching**: Poetry installs cached by lockfile hash
+- **Checkout Reuse**: Repository cloned once, versions switched via git checkout
 - **Version Deduplication**: Batch comparison skips already-generated versions
 - **Parallel Generation**: Could process multiple versions concurrently (future enhancement)
 
