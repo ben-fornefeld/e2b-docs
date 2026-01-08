@@ -93,3 +93,21 @@ export async function resolveLatestVersion(
   const versions = await fetchRemoteTags(repo, tagPattern);
   return versions[0] || null;
 }
+
+export async function checkoutTag(repoDir: string, tag: string): Promise<void> {
+  const repoGit = simpleGit(repoDir);
+
+  // fetch the specific tag with minimal depth
+  await repoGit.fetch([
+    "origin",
+    `refs/tags/${tag}:refs/tags/${tag}`,
+    "--depth",
+    "1",
+  ]);
+
+  // force checkout to discard any local changes
+  await repoGit.checkout(tag, ["--force"]);
+
+  // clean untracked files (like node_modules changes)
+  await repoGit.clean("f", ["-d"]);
+}

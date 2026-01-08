@@ -7,11 +7,7 @@ import type {
 } from "./types.js";
 import { getSDKConfig } from "./lib/config.js";
 import { log } from "./lib/log.js";
-import {
-  fetchRemoteTags,
-  cloneAtTag,
-  resolveLatestVersion,
-} from "./lib/git.js";
+import { fetchRemoteTags, resolveLatestVersion } from "./lib/git.js";
 import {
   fetchLocalVersions,
   filterByMinVersion,
@@ -19,58 +15,69 @@ import {
   versionExists,
 } from "./lib/versions.js";
 import { flattenMarkdown, copyToDocs, locateSDKDir } from "./lib/files.js";
-import { installWithCache } from "./lib/install.js";
+import { installDependencies } from "./lib/install.js";
 import { runGenerator } from "./generators/index.js";
 import { buildSDKPath } from "./lib/utils.js";
 import { CONSTANTS } from "./lib/constants.js";
+import { CheckoutManager } from "./lib/checkout.js";
 
 async function generateVersion(
   sdkKey: string,
   config: SDKConfig,
   version: string,
-  context: GenerationContext
+  context: GenerationContext,
+  checkoutMgr: CheckoutManager,
+  isFirstVersion: boolean
 ): Promise<void> {
-  const repoDir = path.join(context.tempDir, `${sdkKey}-${version}`);
+  const tagName = config.tagFormat.replace(
+    "{version}",
+    version.replace(/^v/, "")
+  );
 
-  try {
-    const tagName = config.tagFormat.replace(
-      "{version}",
-      version.replace(/^v/, "")
+  let repoDir: string;
+
+  if (isFirstVersion) {
+    repoDir = await checkoutMgr.getOrClone(
+      sdkKey,
+      config.repo,
+      tagName,
+      context.tempDir
     );
+  } else {
+    await checkoutMgr.switchVersion(sdkKey, tagName);
+    repoDir = checkoutMgr.getRepoDir(sdkKey)!;
+  }
 
-    await cloneAtTag(config.repo, tagName, repoDir);
-
-    const sdkDir = await locateSDKDir(repoDir, config.sdkPath, config.sdkPaths);
-    if (!sdkDir) {
-      throw new Error(
-        `SDK path not found: ${config.sdkPath || config.sdkPaths?.join(", ")}`
-      );
-    }
-
-    await installWithCache(sdkDir, config.generator, context.tempDir);
-    const generatedDocsDir = await runGenerator(sdkDir, config, context);
-
-    const sdkRefDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
-    if (generatedDocsDir !== sdkRefDir) {
-      log.info(`Normalizing ${path.basename(generatedDocsDir)} to sdk_ref`, 1);
-      await fs.move(generatedDocsDir, sdkRefDir);
-    }
-
-    await flattenMarkdown(sdkRefDir);
-
-    const destDir = buildSDKPath(context.docsDir, sdkKey, version);
-    const success = await copyToDocs(
-      sdkRefDir,
-      destDir,
-      config.displayName,
-      version
+  const sdkDir = await locateSDKDir(repoDir, config.sdkPath, config.sdkPaths);
+  if (!sdkDir) {
+    throw new Error(
+      `SDK path not found: ${config.sdkPath || config.sdkPaths?.join(", ")}`
     );
+  }
 
-    if (!success) {
-      throw new Error("Failed to copy generated files");
-    }
-  } finally {
-    await fs.remove(repoDir);
+  const sdkRefDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
+  await fs.remove(sdkRefDir);
+
+  await installDependencies(sdkDir, config.generator);
+  const generatedDocsDir = await runGenerator(sdkDir, config, context);
+
+  if (generatedDocsDir !== sdkRefDir) {
+    log.info(`Normalizing ${path.basename(generatedDocsDir)} to sdk_ref`, 1);
+    await fs.move(generatedDocsDir, sdkRefDir, { overwrite: true });
+  }
+
+  await flattenMarkdown(sdkRefDir);
+
+  const destDir = buildSDKPath(context.docsDir, sdkKey, version);
+  const success = await copyToDocs(
+    sdkRefDir,
+    destDir,
+    config.displayName,
+    version
+  );
+
+  if (!success) {
+    throw new Error("Failed to copy generated files");
   }
 }
 
@@ -185,20 +192,36 @@ async function processVersionBatch(
   let failed = 0;
   const failedVersions: string[] = [];
 
-  for (const version of versions) {
-    log.blank();
-    log.step(`Generating ${version}`, 1);
+  const checkoutMgr = new CheckoutManager();
 
-    try {
-      await generateVersion(sdkKey, config, version, context);
-      log.success(`Complete: ${version}`, 1);
-      generated++;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      log.error(`Failed: ${version} - ${msg}`, 1);
-      failed++;
-      failedVersions.push(version);
+  try {
+    for (let i = 0; i < versions.length; i++) {
+      const version = versions[i];
+      const isFirstVersion = i === 0;
+
+      log.blank();
+      log.step(`Generating ${version}`, 1);
+
+      try {
+        await generateVersion(
+          sdkKey,
+          config,
+          version,
+          context,
+          checkoutMgr,
+          isFirstVersion
+        );
+        log.success(`Complete: ${version}`, 1);
+        generated++;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        log.error(`Failed: ${version} - ${msg}`, 1);
+        failed++;
+        failedVersions.push(version);
+      }
     }
+  } finally {
+    await checkoutMgr.cleanup();
   }
 
   return { generated, failed, failedVersions };

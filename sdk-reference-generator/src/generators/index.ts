@@ -13,12 +13,7 @@ export async function runGenerator(
       return await generateTypedoc(sdkDir, context.configsDir);
 
     case "pydoc":
-      return await generatePydoc(
-        sdkDir,
-        config.fallbackPackages || [],
-        config.submodules,
-        config.basePackage
-      );
+      return await generatePydoc(sdkDir, config.allowedPackages);
 
     case "cli":
       return await generateCli(sdkDir);

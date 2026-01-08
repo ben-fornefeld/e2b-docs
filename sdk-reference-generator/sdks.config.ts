@@ -38,18 +38,16 @@ const sdks = {
     generator: "pydoc",
     required: true,
     minVersion: "1.0.0",
-    basePackage: "e2b",
-    fallbackPackages: [
+    allowedPackages: [
       "e2b.sandbox_sync",
       "e2b.sandbox_async",
       "e2b.exceptions",
       "e2b.template",
       "e2b.template_sync",
       "e2b.template_async",
+      "e2b.template.logger",
+      "e2b.template.readycmd",
     ],
-    submodules: {
-      "e2b.template": ["logger", "readycmd"],
-    },
   },
 
   "code-interpreter-js-sdk": {
@@ -76,8 +74,7 @@ const sdks = {
     generator: "pydoc",
     required: false,
     minVersion: "1.0.0",
-    basePackage: "e2b_code_interpreter",
-    fallbackPackages: ["e2b_code_interpreter"],
+    allowedPackages: ["e2b_code_interpreter"],
   },
 
   "desktop-js-sdk": {
@@ -104,8 +101,7 @@ const sdks = {
     generator: "pydoc",
     required: false,
     minVersion: "1.0.0",
-    basePackage: "e2b_desktop",
-    fallbackPackages: ["e2b_desktop"],
+    allowedPackages: ["e2b_desktop"],
   },
 } as const satisfies Record<string, SDKConfig>;
 

@@ -17,9 +17,7 @@ type TypedocSDKConfig = BaseSDKConfig & {
 
 type PydocSDKConfig = BaseSDKConfig & {
   generator: "pydoc";
-  basePackage: string;
-  fallbackPackages?: readonly string[];
-  submodules?: Record<string, readonly string[]>;
+  allowedPackages: readonly string[];
 };
 
 type CLISDKConfig = BaseSDKConfig & {
