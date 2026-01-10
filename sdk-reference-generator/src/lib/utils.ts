@@ -27,7 +27,6 @@ export function sortVersionsDescending(versions: string[]): string[] {
 export function createFrontmatter(title: string): string {
   return `---
 sidebarTitle: "${title}"
-mode: "center"
 ---
 
 `;
