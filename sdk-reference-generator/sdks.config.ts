@@ -111,7 +111,13 @@ const sdks = {
     minVersion: "1.0.0",
 
     defaultConfig: {
-      entryPoints: ["src/index.ts"],
+      entryPoints: [
+        "src/index.ts",
+        "src/charts.ts",
+        "src/consts.ts",
+        "src/messaging.ts",
+        "src/sandbox.ts",
+      ],
     },
   },
 
@@ -145,7 +151,7 @@ const sdks = {
     minVersion: "1.0.0",
 
     defaultConfig: {
-      entryPoints: ["src/index.ts"],
+      entryPoints: ["src/index.ts", "src/sandbox.ts"],
     },
   },
 

@@ -1,5 +1,6 @@
 import semver from "semver";
 import { stripVersionPrefix } from "./utils.js";
+import { log } from "./log.js";
 import type { TypedocConfig, PydocConfig } from "../types.js";
 
 // shared typedoc formatting settings (applied to all typedoc SDKs)
@@ -37,16 +38,24 @@ export function resolveConfig<T extends TypedocConfig | PydocConfig>(
   configOverrides: Record<string, Partial<T>> | undefined,
   version: string
 ): T {
-  if (!configOverrides) return defaultConfig;
+  if (!configOverrides) {
+    log.info(`Using default config for ${version}`, 1);
+    return defaultConfig;
+  }
 
   const cleanVersion = stripVersionPrefix(version);
 
   for (const [range, override] of Object.entries(configOverrides)) {
     if (semver.satisfies(cleanVersion, range)) {
+      log.info(
+        `Using config override for ${version} (matched range: ${range})`,
+        1
+      );
       return { ...defaultConfig, ...override } as T;
     }
   }
 
+  log.info(`Using default config for ${version} (no override match)`, 1);
   return defaultConfig;
 }
 
