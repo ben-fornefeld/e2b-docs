@@ -243,7 +243,7 @@ async function processVersionBatch(
   return { generated, failed, failedVersions };
 }
 
-function handleGenerationFailures(
+export function handleGenerationFailures(
   config: SDKConfig,
   result: GenerationResult
 ): void {
