@@ -139,11 +139,46 @@ The generator runs in GitHub Actions on:
 - Manual workflow dispatch
 - Automatic repository dispatch from SDK repos on release
 
-Safety features:
+### Manual Trigger (GitHub UI)
+
+1. Go to **Actions** → **Sync SDK Reference Documentation**
+2. Click **Run workflow**
+3. Fill in:
+   - **SDK**: `all`, or specific SDK key (e.g., `js-sdk`, `python-sdk`, `cli`)
+   - **Version**: `all`, `latest`, or specific version (e.g., `v2.9.0`)
+
+### Manual Trigger (GitHub CLI)
+
+```bash
+# generate all SDKs, all versions
+gh workflow run sdk-reference-sync.yml -f sdk=all -f version=all
+
+# generate specific SDK, latest version
+gh workflow run sdk-reference-sync.yml -f sdk=js-sdk -f version=latest
+
+# generate specific version
+gh workflow run sdk-reference-sync.yml -f sdk=python-sdk -f version=v2.8.0
+```
+
+### Repository Dispatch (from SDK repos)
+
+SDK repositories can trigger doc generation on release:
+
+```bash
+curl -X POST \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github.v3+json" \
+  https://api.github.com/repos/e2b-dev/docs/dispatches \
+  -d '{"event_type": "sdk-release", "client_payload": {"sdk": "js-sdk", "version": "v2.9.0"}}'
+```
+
+### Safety Features
+
 - Validates all generated files before committing
 - Only commits if changes detected
 - Skips CI on doc updates (`[skip ci]` in commit message)
 - Full logging visible in workflow runs
+- User inputs passed via environment variables (prevents script injection)
 
 ## Performance
 

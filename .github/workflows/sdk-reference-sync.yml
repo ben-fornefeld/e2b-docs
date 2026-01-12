@@ -58,15 +58,19 @@ jobs:
 
       - name: Determine SDK and Version
         id: params
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SDK: ${{ github.event.inputs.sdk }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          PAYLOAD_SDK: ${{ github.event.client_payload.sdk }}
+          PAYLOAD_VERSION: ${{ github.event.client_payload.version }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            SDK="${{ github.event.inputs.sdk }}"
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            SDK="${{ github.event.client_payload.sdk }}"
-            # on repository_dispatch, default to "all" to auto-detect missing versions
-            VERSION="${{ github.event.client_payload.version }}"
-            VERSION="${VERSION:-all}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            SDK="$INPUT_SDK"
+            VERSION="$INPUT_VERSION"
+          elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
+            SDK="$PAYLOAD_SDK"
+            VERSION="${PAYLOAD_VERSION:-all}"
           fi
 
           echo "sdk=${SDK:-all}" >> $GITHUB_OUTPUT
@@ -74,10 +78,13 @@ jobs:
 
       - name: Generate SDK Reference
         working-directory: sdk-reference-generator
+        env:
+          SDK_NAME: ${{ steps.params.outputs.sdk }}
+          SDK_VERSION: ${{ steps.params.outputs.version }}
         run: |
           pnpm run generate \
-            --sdk "${{ steps.params.outputs.sdk }}" \
-            --version "${{ steps.params.outputs.version }}"
+            --sdk "$SDK_NAME" \
+            --version "$SDK_VERSION"
 
       - name: Verify generated files
         run: |
@@ -85,6 +92,9 @@ jobs:
           find docs/sdk-reference -type f -name "*.mdx" 2>/dev/null | head -20 || echo "No MDX files found"
 
       - name: Commit and push changes
+        env:
+          SDK_NAME: ${{ steps.params.outputs.sdk }}
+          SDK_VERSION: ${{ steps.params.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -95,16 +105,19 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "[skip ci] Update SDK reference: ${{ steps.params.outputs.sdk }} ${{ steps.params.outputs.version }}"
+            git commit -m "[skip ci] Update SDK reference: $SDK_NAME $SDK_VERSION"
             git push
           fi
 
       - name: Summary
+        env:
+          SDK_NAME: ${{ steps.params.outputs.sdk }}
+          SDK_VERSION: ${{ steps.params.outputs.version }}
         run: |
           echo "## SDK Reference Generation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **SDK**: ${{ steps.params.outputs.sdk }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.params.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **SDK**: $SDK_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $SDK_VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Generated Files" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
