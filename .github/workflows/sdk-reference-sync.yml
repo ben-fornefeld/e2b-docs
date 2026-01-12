@@ -89,6 +89,7 @@ jobs:
         env:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
+          LIMIT: ${{ steps.params.outputs.limit }}
         run: |
           pnpm run generate \
             --sdk "$SDK_NAME" \
@@ -104,6 +105,7 @@ jobs:
         env:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
+          LIMIT: ${{ steps.params.outputs.limit }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -114,7 +116,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "[skip ci] Update SDK reference: $SDK_NAME $SDK_VERSION"
+            git commit -m "[skip ci] Update SDK reference: $SDK_NAME $SDK_VERSION $LIMIT"
             git push
           fi
 
@@ -122,11 +124,13 @@ jobs:
         env:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
+          LIMIT: ${{ steps.params.outputs.limit }}
         run: |
           echo "## SDK Reference Generation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **SDK**: $SDK_NAME" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: $SDK_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Limit**: $LIMIT" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Generated Files" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
