@@ -1,7 +1,6 @@
 name: Sync SDK Reference Documentation
 
 on:
-  # manual trigger with inputs
   workflow_dispatch:
     inputs:
       sdk:
@@ -12,22 +11,31 @@ on:
       version:
         description: "Version to generate (all, latest, or specific like v2.9.0)"
         required: true
-        default: "all"
+        default: "latest"
         type: string
-
       limit:
         description: "Limit number of versions to generate (default: 5)"
         required: false
         default: 5
         type: number
+      force:
+        description: "Force regeneration of existing versions"
+        required: false
+        default: false
+        type: boolean
 
-  # triggered from e2b-dev/e2b repo on release
   repository_dispatch:
     types: [sdk-release]
+
+# prevent concurrent runs that could conflict
+concurrency:
+  group: sdk-reference-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   generate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
 
@@ -47,10 +55,21 @@ jobs:
         with:
           version: 9
 
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            sdk-reference-generator/node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('sdk-reference-generator/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install generator dependencies
         working-directory: sdk-reference-generator
@@ -59,9 +78,6 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Install Poetry
-        run: pip install poetry
-
       - name: Determine SDK and Version
         id: params
         env:
@@ -69,6 +85,7 @@ jobs:
           INPUT_SDK: ${{ github.event.inputs.sdk }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
           INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_FORCE: ${{ github.event.inputs.force }}
           PAYLOAD_SDK: ${{ github.event.client_payload.sdk }}
           PAYLOAD_VERSION: ${{ github.event.client_payload.version }}
           PAYLOAD_LIMIT: ${{ github.event.client_payload.limit }}
@@ -76,16 +93,19 @@ jobs:
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             SDK="$INPUT_SDK"
             VERSION="$INPUT_VERSION"
-            LIMIT="${INPUT_LIMIT:-5}"
+            LIMIT="$INPUT_LIMIT"
+            FORCE="$INPUT_FORCE"
           elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
             SDK="$PAYLOAD_SDK"
-            VERSION="${PAYLOAD_VERSION:-all}"
+            VERSION="${PAYLOAD_VERSION:-latest}"
             LIMIT="${PAYLOAD_LIMIT:-5}"
+            FORCE="false"
           fi
 
           echo "sdk=${SDK:-all}" >> $GITHUB_OUTPUT
-          echo "version=${VERSION:-all}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
           echo "limit=${LIMIT:-5}" >> $GITHUB_OUTPUT
+          echo "force=${FORCE:-false}" >> $GITHUB_OUTPUT
 
       - name: Generate SDK Reference
         working-directory: sdk-reference-generator
@@ -93,23 +113,26 @@ jobs:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
           LIMIT: ${{ steps.params.outputs.limit }}
-          FORCE_COLOR: 2
+          FORCE: ${{ steps.params.outputs.force }}
+          FORCE_COLOR: "2"
         run: |
-          pnpm run generate \
-            --sdk "$SDK_NAME" \
-            --version "$SDK_VERSION" \
-            --limit "$LIMIT"
+          ARGS="--sdk $SDK_NAME --version $SDK_VERSION"
 
-      - name: Verify generated files
-        run: |
-          echo "Generated SDK reference files:"
-          find docs/sdk-reference -type f -name "*.mdx" 2>/dev/null | head -20 || echo "No MDX files found"
+          if [[ -n "$LIMIT" && "$LIMIT" != "0" ]]; then
+            ARGS="$ARGS --limit $LIMIT"
+          fi
+
+          if [[ "$FORCE" == "true" ]]; then
+            ARGS="$ARGS --force"
+          fi
+
+          pnpm run generate $ARGS
 
       - name: Commit and push changes
+        id: commit
         env:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
-          LIMIT: ${{ steps.params.outputs.limit }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -119,9 +142,11 @@ jobs:
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
+            echo "changes=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "[skip ci] Update SDK reference: $SDK_NAME $SDK_VERSION (limit: $LIMIT)"
+            git commit -m "docs: update SDK reference for $SDK_NAME $SDK_VERSION"
             git push
+            echo "changes=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Summary
@@ -129,15 +154,21 @@ jobs:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
           LIMIT: ${{ steps.params.outputs.limit }}
+          CHANGES: ${{ steps.commit.outputs.changes }}
         run: |
           echo "## SDK Reference Generation Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **SDK**: $SDK_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: $SDK_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "- **Limit**: $LIMIT" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SDK | $SDK_NAME |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | $SDK_VERSION |" >> $GITHUB_STEP_SUMMARY
+          echo "| Limit | ${LIMIT:-No limit} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Changes committed | $CHANGES |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Generated Files" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          find docs/sdk-reference -type f -name "*.mdx" | wc -l | xargs echo "Total MDX files:" >> $GITHUB_STEP_SUMMARY
-          find docs/sdk-reference -type f -name "*.mdx" >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$CHANGES" == "true" ]]; then
+            echo "### Generated Files" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "Total MDX files: $(find docs/sdk-reference -type f -name '*.mdx' | wc -l)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
