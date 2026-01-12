@@ -187,4 +187,3 @@ describe("buildSDKPath", () => {
     expect(result).toContain("code-interpreter-js-sdk");
   });
 });
-

@@ -17,6 +17,9 @@ describe("handleGenerationFailures", () => {
     tagFormat: "test@{version}",
     generator: "typedoc",
     required: true,
+    defaultConfig: {
+      entryPoints: ["src/index.ts"],
+    },
   };
 
   // optional SDK config
@@ -29,6 +32,9 @@ describe("handleGenerationFailures", () => {
     tagFormat: "@test/python@{version}",
     generator: "typedoc",
     required: false,
+    defaultConfig: {
+      entryPoints: ["src/index.ts"],
+    },
   };
 
   describe("required SDK", () => {
@@ -142,6 +148,9 @@ describe("version discovery integration", () => {
         generator: "typedoc",
         required: true,
         minVersion: "1.0.0",
+        defaultConfig: {
+          entryPoints: ["src/index.ts"],
+        },
       },
       "optional-sdk": {
         displayName: "Optional SDK",
@@ -152,6 +161,9 @@ describe("version discovery integration", () => {
         tagFormat: "@optional@{version}",
         generator: "typedoc",
         required: false,
+        defaultConfig: {
+          entryPoints: ["src/index.ts"],
+        },
       },
     },
   }));

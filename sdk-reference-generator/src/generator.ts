@@ -4,6 +4,8 @@ import type {
   SDKConfig,
   GenerationContext,
   GenerationResult,
+  TypedocConfig,
+  PydocConfig,
 } from "./types.js";
 import sdks from "../sdks.config.js";
 import { log } from "./lib/log.js";
@@ -22,6 +24,7 @@ import { generateCli } from "./generators/cli.js";
 import { buildSDKPath } from "./lib/utils.js";
 import { CONSTANTS } from "./lib/constants.js";
 import { CheckoutManager } from "./lib/checkout.js";
+import { resolveConfig } from "./lib/config.js";
 
 async function generateVersion(
   sdkKey: string,
@@ -64,16 +67,32 @@ async function generateVersion(
 
   let generatedDocsDir: string;
   switch (config.generator) {
-    case "typedoc":
-      generatedDocsDir = await generateTypedoc(sdkDir, context.configsDir);
+    case "typedoc": {
+      const resolvedConfig = resolveConfig<TypedocConfig>(
+        config.defaultConfig,
+        config.configOverrides,
+        version
+      );
+      generatedDocsDir = await generateTypedoc(
+        sdkDir,
+        resolvedConfig,
+        context.configsDir
+      );
       break;
-    case "pydoc":
+    }
+    case "pydoc": {
+      const resolvedConfig = resolveConfig<PydocConfig>(
+        config.defaultConfig,
+        config.configOverrides,
+        version
+      );
       generatedDocsDir = await generatePydoc(
         sdkDir,
-        config.allowedPackages,
+        resolvedConfig,
         installResult.usePoetryRun
       );
       break;
+    }
     case "cli":
       generatedDocsDir = await generateCli(sdkDir);
       break;

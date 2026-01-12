@@ -1,70 +1,62 @@
-import { execa } from 'execa';
-import fs from 'fs-extra';
-import path from 'path';
-import { log } from '../lib/log.js';
+import { execa } from "execa";
+import fs from "fs-extra";
+import path from "path";
+import { log } from "../lib/log.js";
+import { buildTypedocConfig } from "../lib/config.js";
+import { CONSTANTS } from "../lib/constants.js";
+import type { TypedocConfig } from "../types.js";
 
-async function getTypedocOutputDir(sdkDir: string): Promise<string> {
-  const configPath = path.join(sdkDir, 'typedoc.json');
-  
-  if (await fs.pathExists(configPath)) {
-    try {
-      const config = await fs.readJSON(configPath);
-      return config.out || 'sdk_ref';
-    } catch {
-      return 'sdk_ref';
+const GENERATED_CONFIG_NAME = "typedoc.generated.json";
+
+/**
+ * Removes any existing typedoc config from the repo to prevent interference.
+ */
+async function cleanRepoConfigs(sdkDir: string): Promise<void> {
+  const configFiles = ["typedoc.json", "typedoc.config.js", "typedoc.config.cjs"];
+
+  for (const file of configFiles) {
+    const filePath = path.join(sdkDir, file);
+    if (await fs.pathExists(filePath)) {
+      log.info(`Removing repo config: ${file}`, 1);
+      await fs.remove(filePath);
     }
   }
-  
-  return 'sdk_ref';
 }
 
 export async function generateTypedoc(
   sdkDir: string,
+  resolvedConfig: TypedocConfig,
   configsDir: string
 ): Promise<string> {
-  const hasRepoConfig = await fs.pathExists(path.join(sdkDir, 'typedoc.json'));
-  const outputDir = await getTypedocOutputDir(sdkDir);
+  // remove any existing repo configs to force our config
+  await cleanRepoConfigs(sdkDir);
 
-  if (hasRepoConfig) {
-    log.info('Running TypeDoc with repo config...', 1);
-    await execa(
-      'npx',
-      [
-        'typedoc',
-        '--plugin',
-        'typedoc-plugin-markdown',
-        '--plugin',
-        path.join(configsDir, 'typedoc-theme.cjs'),
-      ],
-      {
-        cwd: sdkDir,
-        stdio: 'inherit',
-      }
-    );
-  } else {
-    log.info('Running TypeDoc with default config...', 1);
-    await fs.copy(
-      path.join(configsDir, 'typedoc.json'),
-      path.join(sdkDir, 'typedoc.docs.json')
-    );
+  // build full config with formatting defaults + SDK-specific settings
+  const fullConfig = buildTypedocConfig(resolvedConfig);
 
-    await execa(
-      'npx',
-      [
-        'typedoc',
-        '--options',
-        './typedoc.docs.json',
-        '--plugin',
-        'typedoc-plugin-markdown',
-        '--plugin',
-        path.join(configsDir, 'typedoc-theme.cjs'),
-      ],
-      {
-        cwd: sdkDir,
-        stdio: 'inherit',
-      }
-    );
-  }
+  // write our generated config
+  const configPath = path.join(sdkDir, GENERATED_CONFIG_NAME);
+  await fs.writeJSON(configPath, fullConfig, { spaces: 2 });
 
-  return path.join(sdkDir, outputDir);
+  log.info("Running TypeDoc with generated config...", 1);
+  log.data(`Entry points: ${resolvedConfig.entryPoints.join(", ")}`, 1);
+
+  await execa(
+    "npx",
+    [
+      "typedoc",
+      "--options",
+      `./${GENERATED_CONFIG_NAME}`,
+      "--plugin",
+      "typedoc-plugin-markdown",
+      "--plugin",
+      path.join(configsDir, "typedoc-theme.cjs"),
+    ],
+    {
+      cwd: sdkDir,
+      stdio: "inherit",
+    }
+  );
+
+  return path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
 }

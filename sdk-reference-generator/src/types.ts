@@ -11,20 +11,36 @@ type BaseSDKConfig = {
   sdkPaths?: string[];
 };
 
+// generator-specific config shapes
+export type TypedocConfig = {
+  entryPoints: string[];
+  exclude?: string[];
+};
+
+export type PydocConfig = {
+  allowedPackages: readonly string[];
+};
+
+// discriminated union - defaultConfig and configOverrides typed by generator
 type TypedocSDKConfig = BaseSDKConfig & {
   generator: "typedoc";
+  defaultConfig: TypedocConfig;
+  configOverrides?: Record<string, Partial<TypedocConfig>>;
 };
 
 type PydocSDKConfig = BaseSDKConfig & {
   generator: "pydoc";
-  allowedPackages: readonly string[];
+  defaultConfig: PydocConfig;
+  configOverrides?: Record<string, Partial<PydocConfig>>;
 };
 
 type CLISDKConfig = BaseSDKConfig & {
   generator: "cli";
+  // no defaultConfig/configOverrides - CLI is self-contained
 };
 
 export type SDKConfig = TypedocSDKConfig | PydocSDKConfig | CLISDKConfig;
+export type { TypedocSDKConfig, PydocSDKConfig, CLISDKConfig };
 export type GeneratorType = SDKConfig["generator"];
 
 export type ConfigFile = {

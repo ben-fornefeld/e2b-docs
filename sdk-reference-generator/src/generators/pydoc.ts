@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import { CONSTANTS } from "../lib/constants.js";
 import { log } from "../lib/log.js";
+import type { PydocConfig } from "../types.js";
 
 async function processMdx(file: string): Promise<void> {
   let content = await fs.readFile(file, "utf-8");
@@ -72,9 +73,10 @@ async function processPackage(
 
 export async function generatePydoc(
   sdkDir: string,
-  allowedPackages: readonly string[],
+  resolvedConfig: PydocConfig,
   usePoetryRun: boolean
 ): Promise<string> {
+  const { allowedPackages } = resolvedConfig;
   const outputDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
   await fs.ensureDir(outputDir);
 
@@ -82,6 +84,7 @@ export async function generatePydoc(
     `Attempting to generate docs for ${allowedPackages.length} packages`,
     1
   );
+  log.data(`Packages: ${allowedPackages.join(", ")}`, 1);
 
   let successful = 0;
   for (const pkg of allowedPackages) {
