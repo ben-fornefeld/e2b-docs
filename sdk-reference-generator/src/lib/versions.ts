@@ -1,8 +1,13 @@
-import fs from 'fs-extra';
-import path from 'path';
-import semver from 'semver';
-import { stripVersionPrefix, sortVersionsDescending, isValidVersion } from './utils.js';
-import { CONSTANTS } from './constants.js';
+import fs from "fs-extra";
+import path from "path";
+import semver from "semver";
+import {
+  stripVersionPrefix,
+  sortVersionsDescending,
+  isValidVersion,
+  normalizeVersion,
+} from "./utils.js";
+import { CONSTANTS } from "./constants.js";
 
 export { isValidVersion };
 
@@ -44,7 +49,8 @@ export async function fetchLocalVersions(
     const hasMdx = files.some((f) => f.endsWith(CONSTANTS.MDX_EXTENSION));
 
     if (hasMdx) {
-      versions.push(entry.name);
+      // normalize to "v" prefix for consistent comparison with remote versions
+      versions.push(normalizeVersion(entry.name));
     }
   }
 
@@ -61,13 +67,27 @@ export async function versionExists(
   version: string,
   docsDir: string
 ): Promise<boolean> {
-  const versionDir = path.join(docsDir, CONSTANTS.DOCS_SDK_REF_PATH, sdkKey, version);
+  const normalized = normalizeVersion(version);
+  const stripped = stripVersionPrefix(version);
 
-  if (!(await fs.pathExists(versionDir))) {
-    return false;
+  // check both "v1.0.0" and "1.0.0" directories for backward compatibility
+  const candidates = [normalized, stripped];
+
+  for (const candidate of candidates) {
+    const versionDir = path.join(
+      docsDir,
+      CONSTANTS.DOCS_SDK_REF_PATH,
+      sdkKey,
+      candidate
+    );
+
+    if (await fs.pathExists(versionDir)) {
+      const files = await fs.readdir(versionDir);
+      if (files.some((f) => f.endsWith(CONSTANTS.MDX_EXTENSION))) {
+        return true;
+      }
+    }
   }
 
-  const files = await fs.readdir(versionDir);
-  return files.some((f) => f.endsWith(CONSTANTS.MDX_EXTENSION));
+  return false;
 }
-

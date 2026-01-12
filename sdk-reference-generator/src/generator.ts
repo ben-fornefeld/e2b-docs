@@ -110,8 +110,7 @@ async function discoverAllVersions(
 
   if (remote.length === 0) {
     if (config.required) {
-      log.error("No tags found", 1);
-      process.exit(1);
+      throw new Error(`No tags found for required SDK: ${sdkKey}`);
     }
     log.warn("No tags found, skipping...", 1);
     return [];
@@ -178,8 +177,7 @@ async function resolveSpecificVersion(
 
   if (!resolved) {
     if (config.required) {
-      log.error("No tags found", 1);
-      process.exit(1);
+      throw new Error(`No tags found for required SDK: ${sdkKey}`);
     }
     log.warn("No tags found, skipping...", 1);
     return [];
@@ -278,7 +276,7 @@ function handleGenerationFailures(
       : "All versions failed";
     log.error(`WORKFLOW ABORTED: ${reason}`, 1);
     log.error(`Failed: ${failedVersions.join(" ")}`, 1);
-    process.exit(1);
+    throw new Error(`Generation aborted: ${reason}`);
   }
 }
 

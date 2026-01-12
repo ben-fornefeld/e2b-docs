@@ -103,16 +103,14 @@ export async function mergeNavigation(
   const docsJsonPath = path.join(docsDir, "docs.json");
 
   if (!(await fs.pathExists(docsJsonPath))) {
-    log.error("docs.json not found");
-    process.exit(1);
+    throw new Error("docs.json not found");
   }
 
   const docsJson = await fs.readJSON(docsJsonPath);
 
   const anchors = docsJson.navigation?.anchors;
   if (!anchors) {
-    log.error("No anchors found in docs.json");
-    process.exit(1);
+    throw new Error("No anchors found in docs.json");
   }
 
   const validDropdowns = navigation.filter(

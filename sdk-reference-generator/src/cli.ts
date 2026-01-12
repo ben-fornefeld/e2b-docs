@@ -100,8 +100,8 @@ async function main(): Promise<void> {
       }
       if (!verification.docsJsonValid) {
         log.error("docs.json validation failed");
-    }
-      process.exit(1);
+      }
+      throw new Error("Documentation verification failed");
     }
 
     log.blank();
