@@ -15,6 +15,12 @@ on:
         default: "all"
         type: string
 
+      limit:
+        description: "Limit number of versions to generate (default: 5)"
+        required: false
+        default: 5
+        type: number
+
   # triggered from e2b-dev/e2b repo on release
   repository_dispatch:
     types: [sdk-release]
