@@ -68,8 +68,10 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_SDK: ${{ github.event.inputs.sdk }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
           PAYLOAD_SDK: ${{ github.event.client_payload.sdk }}
           PAYLOAD_VERSION: ${{ github.event.client_payload.version }}
+          PAYLOAD_LIMIT: ${{ github.event.client_payload.limit }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             SDK="$INPUT_SDK"
@@ -83,6 +85,7 @@ jobs:
 
           echo "sdk=${SDK:-all}" >> $GITHUB_OUTPUT
           echo "version=${VERSION:-all}" >> $GITHUB_OUTPUT
+          echo "limit=${LIMIT:-5}" >> $GITHUB_OUTPUT
 
       - name: Generate SDK Reference
         working-directory: sdk-reference-generator
@@ -93,7 +96,7 @@ jobs:
         run: |
           pnpm run generate \
             --sdk "$SDK_NAME" \
-            --version "$SDK_VERSION"
+            --version "$SDK_VERSION" \
             --limit "$LIMIT"
 
       - name: Verify generated files
@@ -116,7 +119,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "[skip ci] Update SDK reference: $SDK_NAME $SDK_VERSION $LIMIT"
+            git commit -m "[skip ci] Update SDK reference: $SDK_NAME $SDK_VERSION (limit: $LIMIT)"
             git push
           fi
 
