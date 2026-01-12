@@ -45,6 +45,10 @@ export interface GenerationResult {
   failedVersions: string[];
 }
 
+export interface InstallResult {
+  usePoetryRun: boolean;
+}
+
 export interface NavigationVersion {
   version: string;
   default: boolean;

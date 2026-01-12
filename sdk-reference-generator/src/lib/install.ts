@@ -1,11 +1,11 @@
 import { execa } from "execa";
-import type { GeneratorType } from "../types.js";
+import type { GeneratorType, InstallResult } from "../types.js";
 import { log } from "./log.js";
 
 export async function installDependencies(
   sdkDir: string,
   generator: GeneratorType
-): Promise<void> {
+): Promise<InstallResult> {
   log.info("Installing dependencies...", 1);
 
   switch (generator) {
@@ -23,16 +23,16 @@ export async function installDependencies(
         });
       } catch {
         log.warn("pnpm failed, falling back to npm...", 1);
-          await execa(
-            "npm",
-            ["install", "--legacy-peer-deps", "--force", "--prefer-offline"],
-            {
-              cwd: sdkDir,
-              stdio: "inherit",
-            }
-          );
+        await execa(
+          "npm",
+          ["install", "--legacy-peer-deps", "--force", "--prefer-offline"],
+          {
+            cwd: sdkDir,
+            stdio: "inherit",
+          }
+        );
       }
-      break;
+      return { usePoetryRun: false };
     }
 
     case "pydoc": {
@@ -41,6 +41,7 @@ export async function installDependencies(
           cwd: sdkDir,
           stdio: "inherit",
         });
+        return { usePoetryRun: true };
       } catch {
         log.warn("poetry failed, using global pydoc-markdown...", 1);
         await execa(
@@ -51,8 +52,8 @@ export async function installDependencies(
             stdio: "inherit",
           }
         );
+        return { usePoetryRun: false };
       }
-      break;
     }
   }
 }

@@ -18,7 +18,11 @@ async function processMdx(file: string): Promise<void> {
   await fs.writeFile(file, content);
 }
 
-async function processPackage(pkg: string, sdkDir: string): Promise<boolean> {
+async function processPackage(
+  pkg: string,
+  sdkDir: string,
+  usePoetryRun: boolean
+): Promise<boolean> {
   const rawName = pkg.split(".").pop() || pkg;
   const name = rawName.replace(/^e2b_/, "");
 
@@ -31,7 +35,12 @@ async function processPackage(pkg: string, sdkDir: string): Promise<boolean> {
   );
 
   try {
-    const result = await execa("poetry", ["run", "pydoc-markdown", "-p", pkg], {
+    const cmd = usePoetryRun ? "poetry" : "pydoc-markdown";
+    const args = usePoetryRun
+      ? ["run", "pydoc-markdown", "-p", pkg]
+      : ["-p", pkg];
+
+    const result = await execa(cmd, args, {
       cwd: sdkDir,
       stdio: "pipe",
     });
@@ -63,7 +72,8 @@ async function processPackage(pkg: string, sdkDir: string): Promise<boolean> {
 
 export async function generatePydoc(
   sdkDir: string,
-  allowedPackages: readonly string[]
+  allowedPackages: readonly string[],
+  usePoetryRun: boolean
 ): Promise<string> {
   const outputDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
   await fs.ensureDir(outputDir);
@@ -75,7 +85,7 @@ export async function generatePydoc(
 
   let successful = 0;
   for (const pkg of allowedPackages) {
-    const result = await processPackage(pkg, sdkDir);
+    const result = await processPackage(pkg, sdkDir, usePoetryRun);
     if (result) successful++;
   }
 

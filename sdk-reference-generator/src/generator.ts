@@ -60,15 +60,19 @@ async function generateVersion(
   const sdkRefDir = path.join(sdkDir, CONSTANTS.SDK_REF_DIR);
   await fs.remove(sdkRefDir);
 
-  await installDependencies(sdkDir, config.generator);
-  
+  const installResult = await installDependencies(sdkDir, config.generator);
+
   let generatedDocsDir: string;
   switch (config.generator) {
     case "typedoc":
       generatedDocsDir = await generateTypedoc(sdkDir, context.configsDir);
       break;
     case "pydoc":
-      generatedDocsDir = await generatePydoc(sdkDir, config.allowedPackages);
+      generatedDocsDir = await generatePydoc(
+        sdkDir,
+        config.allowedPackages,
+        installResult.usePoetryRun
+      );
       break;
     case "cli":
       generatedDocsDir = await generateCli(sdkDir);
@@ -268,13 +272,13 @@ function handleGenerationFailures(
 
   const shouldAbort = config.required || generated === 0;
   if (shouldAbort) {
-      log.blank();
+    log.blank();
     const reason = config.required
       ? "Required SDK has failures"
       : "All versions failed";
     log.error(`WORKFLOW ABORTED: ${reason}`, 1);
-      log.error(`Failed: ${failedVersions.join(" ")}`, 1);
-      process.exit(1);
+    log.error(`Failed: ${failedVersions.join(" ")}`, 1);
+    process.exit(1);
   }
 }
 
