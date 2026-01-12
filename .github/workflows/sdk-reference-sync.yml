@@ -93,6 +93,7 @@ jobs:
           SDK_NAME: ${{ steps.params.outputs.sdk }}
           SDK_VERSION: ${{ steps.params.outputs.version }}
           LIMIT: ${{ steps.params.outputs.limit }}
+          FORCE_COLOR: 2
         run: |
           pnpm run generate \
             --sdk "$SDK_NAME" \
